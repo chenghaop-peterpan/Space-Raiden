@@ -6,3 +6,4 @@
 |------|------|------|
 | [v1.0.0](v1.0.0.md) | 2026-04-04 | 初始版本：遊戲本體 + Playwright 測試套件建立 |
 | [v1.0.1](v1.0.1.md) | 2026-04-04 | 測試架構重構（smoke/function/integration）+ GitHub Pages 上線 |
+| [v1.0.2](v1.0.2.md) | 2026-04-05 | 完整測試架構重構（5分類 + pyproject.toml），48 tests |
