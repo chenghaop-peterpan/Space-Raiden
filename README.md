@@ -1,3 +1,5 @@
+🎮 **線上遊玩**：https://chenghaop-peterpan.github.io/Space-Raiden/
+
 # 太空梭躲避隕石
 
 一款以 HTML5 Canvas 實作的瀏覽器太空射擊遊戲。玩家駕駛太空梭，在不斷湧入的隕石雨中求生，同時發射雷射摧毀障礙。
@@ -25,8 +27,9 @@
 
 每次新增功能或修改遊戲邏輯時，**必須**同步補充以下兩類測試：
 
-- **UI Test（介面測試）**：實際開啟瀏覽器，模擬使用者操作並驗證畫面元素（如按鍵、分數、生命顯示）
-- **API Test（功能測試）**：透過 Playwright 呼叫遊戲 JS 函式，驗證遊戲邏輯狀態（如 `startGame`、`fireLaser`、`spawnAsteroid`）
+- **Smoke Test（冒煙測試）**：驗證頁面載入後的 DOM 初始狀態與基本互動，確認遊戲可正常開啟
+- **Function Test（功能測試）**：直接呼叫遊戲 JS 函式，驗證單一邏輯行為（如 `startGame`、`fireLaser`、`explode`、移動）
+- **Integration Test（整合測試）**：透過真實 game loop 驗收多系統協同行為（如 asteroid 自然生成、邊界 clamp）
 
 詳細環境設定與測試撰寫規範請參閱 [`docs/testSpec.md`](docs/testSpec.md)
 
@@ -52,6 +55,7 @@ second_project/
 │   └── testSpec.md        # 測試規範文件
 └── tests/
     ├── conftest.py        # pytest fixture（本機伺服器）
-    ├── test_ui.py         # UI tests
-    └── test_api.py        # API tests
+    ├── test_smoke.py      # Smoke tests
+    ├── test_function.py   # Function tests
+    └── test_integration.py # Integration tests
 ```

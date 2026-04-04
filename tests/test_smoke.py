@@ -1,6 +1,9 @@
+# -*- coding: utf-8 -*-
 """
-API Tests — 太空梭躲避隕石
-透過 page.keyboard 模擬使用者操作，驗證 DOM 狀態與遊戲整合行為。
+Smoke Tests - Space-Raiden
+驗證頁面載入後的 DOM 初始狀態與基本互動，確認遊戲可正常開啟與啟動。
+
+執行方式: pytest tests/test_smoke.py -v -s
 """
 
 

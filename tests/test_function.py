@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-UI Tests - Tai Kong Suo Bi Yun Shi
-Shi Ji Kai Qi Liu Lan Qi, Yi Jian Pan Cao Zuo Chu Fa You Xi Yuan Jian.
-Zhi Xing Fang Shi: pytest tests/test_ui.py -v -s --headed --slowmo 2000
+Function Tests - Space-Raiden
+測試單一 game function 的行為：直接呼叫 JS function，結果立即驗收。
+涵蓋：startGame、fireLaser、explode、level 公式、四向移動
+
+執行方式: pytest tests/test_function.py -v -s
 """
-import sys
-import io
+
 
 def _print(msg):
     """Windows cp950 safe print"""
@@ -16,7 +17,7 @@ def _print(msg):
 
 
 def test_startgame_resets_state(game_page):
-    _print("\n[UI TEST] Test: Press Space to start, verify initial state")
+    _print("\n[FUNC TEST] Test: Press Space to start, verify initial state")
     _print("  -> Action: Press Space to show game starting, then verify reset atomically")
     game_page.keyboard.press("Space")
     game_page.wait_for_timeout(1000)  # show game running visually
@@ -35,7 +36,7 @@ def test_startgame_resets_state(game_page):
 
 
 def test_startgame_clears_entities(game_page):
-    _print("\n[UI TEST] Test: After starting game, all entity arrays should be empty")
+    _print("\n[FUNC TEST] Test: After starting game, all entity arrays should be empty")
     _print("  -> Action: Press Space to show game starting, then verify reset atomically")
     game_page.keyboard.press("Space")
     game_page.wait_for_timeout(1000)  # show game running visually
@@ -58,32 +59,8 @@ def test_startgame_clears_entities(game_page):
     _print(f"  [OK] asteroids={result['asteroids']}, lasers={result['lasers']}, explosions={result['explosions']}, particles={result['particles']}")
 
 
-def test_spawn_asteroid_increases_count(game_page):
-    _print("\n[UI TEST] Test: After 3 seconds of gameplay, asteroids should appear")
-    _print("  -> Action: Press Space to start, wait 3 seconds for natural spawning")
-    game_page.keyboard.press("Space")
-    game_page.wait_for_timeout(3000)
-
-    count = game_page.evaluate("() => asteroids.length")
-    assert count > 0
-    _print(f"  [OK] {count} asteroids on screen")
-
-
-def test_spawn_asteroid_properties(game_page):
-    _print("\n[UI TEST] Test: Verify asteroid physical properties match spec")
-    _print("  -> Action: Press Space to start, wait 3 seconds for asteroids to spawn")
-    game_page.keyboard.press("Space")
-    game_page.wait_for_timeout(3000)
-
-    asteroid = game_page.evaluate("() => asteroids[0]")
-    assert asteroid["r"] >= 18
-    assert asteroid["vy"] > 0
-    assert asteroid["hp"] >= 1
-    _print(f"  [OK] radius={asteroid['r']:.1f}, vy={asteroid['vy']:.2f}, hp={asteroid['hp']}")
-
-
 def test_fire_laser_adds_projectile(game_page):
-    _print("\n[UI TEST] Test: Press Space in-game to fire laser")
+    _print("\n[FUNC TEST] Test: Press Space in-game to fire laser")
     _print("  -> Action: Press Space to start -> Press Space again to fire laser -> check immediately")
     game_page.keyboard.press("Space")
     game_page.wait_for_timeout(500)
@@ -100,7 +77,7 @@ def test_fire_laser_adds_projectile(game_page):
 
 
 def test_fire_laser_respects_cooldown(game_page):
-    _print("\n[UI TEST] Test: Firing during cooldown should only produce 1 laser")
+    _print("\n[FUNC TEST] Test: Firing during cooldown should only produce 1 laser")
     _print("  -> Action: Press Space to start -> fire twice rapidly -> verify only 1 laser")
     game_page.keyboard.press("Space")
     game_page.wait_for_timeout(500)
@@ -117,7 +94,7 @@ def test_fire_laser_respects_cooldown(game_page):
 
 
 def test_explode_small_generates_particles(game_page):
-    _print("\n[UI TEST] Test: Small explosion should generate particle effects")
+    _print("\n[FUNC TEST] Test: Small explosion should generate particle effects")
     _print("  -> Action: Press Space to start -> trigger small explosion at center")
     game_page.keyboard.press("Space")
     game_page.wait_for_timeout(500)
@@ -133,7 +110,7 @@ def test_explode_small_generates_particles(game_page):
 
 
 def test_explode_big_generates_more_particles(game_page):
-    _print("\n[UI TEST] Test: Large explosion should generate MORE particles")
+    _print("\n[FUNC TEST] Test: Large explosion should generate MORE particles")
     _print("  -> Action: Press Space to start -> trigger large explosion at center")
     game_page.keyboard.press("Space")
     game_page.wait_for_timeout(500)
@@ -149,7 +126,7 @@ def test_explode_big_generates_more_particles(game_page):
 
 
 def test_explode_big_triggers_screen_shake(game_page):
-    _print("\n[UI TEST] Test: Large explosion should trigger screen shake")
+    _print("\n[FUNC TEST] Test: Large explosion should trigger screen shake")
     _print("  -> Action: Press Space to start -> trigger large explosion -> verify shake value")
     game_page.keyboard.press("Space")
     game_page.wait_for_timeout(500)
@@ -164,7 +141,7 @@ def test_explode_big_triggers_screen_shake(game_page):
 
 
 def test_level_formula(game_page):
-    _print("\n[UI TEST] Test: Score 600 should push level to 3")
+    _print("\n[FUNC TEST] Test: Score 600 should push level to 3")
     _print("  -> Action: Press Space to start -> set score=600 -> verify #level DOM updates")
     game_page.keyboard.press("Space")
     game_page.wait_for_timeout(500)
@@ -175,3 +152,55 @@ def test_level_formula(game_page):
     level_val = game_page.evaluate("() => level")
     assert level_val == 3
     _print(f"  [OK] DOM #level={level_text}, JS level={level_val}")
+
+
+def test_move_left(game_page):
+    _print("\n[FUNC TEST] Test: Hold ArrowLeft -> player.x should decrease")
+    _print("  -> Action: Start game -> record x -> hold ArrowLeft -> verify x decreased")
+    game_page.keyboard.press("Space")
+    before = game_page.evaluate("() => player.x")
+    game_page.keyboard.down("ArrowLeft")
+    game_page.wait_for_timeout(800)
+    game_page.keyboard.up("ArrowLeft")
+    after = game_page.evaluate("() => player.x")
+    assert after < before
+    _print(f"  [OK] x: {before:.1f} -> {after:.1f} (moved left by {before - after:.1f}px)")
+
+
+def test_move_right(game_page):
+    _print("\n[FUNC TEST] Test: Hold ArrowRight -> player.x should increase")
+    _print("  -> Action: Start game -> record x -> hold ArrowRight -> verify x increased")
+    game_page.keyboard.press("Space")
+    before = game_page.evaluate("() => player.x")
+    game_page.keyboard.down("ArrowRight")
+    game_page.wait_for_timeout(800)
+    game_page.keyboard.up("ArrowRight")
+    after = game_page.evaluate("() => player.x")
+    assert after > before
+    _print(f"  [OK] x: {before:.1f} -> {after:.1f} (moved right by {after - before:.1f}px)")
+
+
+def test_move_up(game_page):
+    _print("\n[FUNC TEST] Test: Hold ArrowUp -> player.y should decrease")
+    _print("  -> Action: Start game -> record y -> hold ArrowUp -> verify y decreased")
+    game_page.keyboard.press("Space")
+    before = game_page.evaluate("() => player.y")
+    game_page.keyboard.down("ArrowUp")
+    game_page.wait_for_timeout(800)
+    game_page.keyboard.up("ArrowUp")
+    after = game_page.evaluate("() => player.y")
+    assert after < before
+    _print(f"  [OK] y: {before:.1f} -> {after:.1f} (moved up by {before - after:.1f}px)")
+
+
+def test_move_down(game_page):
+    _print("\n[FUNC TEST] Test: Hold ArrowDown -> player.y should increase")
+    _print("  -> Action: Start game -> record y -> hold ArrowDown -> verify y increased")
+    game_page.keyboard.press("Space")
+    before = game_page.evaluate("() => player.y")
+    game_page.keyboard.down("ArrowDown")
+    game_page.wait_for_timeout(800)
+    game_page.keyboard.up("ArrowDown")
+    after = game_page.evaluate("() => player.y")
+    assert after > before
+    _print(f"  [OK] y: {before:.1f} -> {after:.1f} (moved down by {after - before:.1f}px)")
