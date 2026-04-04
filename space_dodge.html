@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>太空梭躲避隕石</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    font-family: 'Courier New', monospace;
+    overflow: hidden;
+  }
+  #ui {
+    display: flex;
+    gap: 40px;
+    margin-bottom: 10px;
+    color: #0ff;
+    font-size: 16px;
+    text-shadow: 0 0 8px #0ff;
+  }
+  #canvas {
+    border: 1px solid #0ff;
+    box-shadow: 0 0 20px #0ff4, 0 0 60px #0004;
+    display: block;
+  }
+  #hint {
+    margin-top: 10px;
+    color: #555;
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+<div id="ui">
+  <span>分數：<span id="score">0</span></span>
+  <span>生命：<span id="lives">❤️❤️❤️</span></span>
+  <span>等級：<span id="level">1</span></span>
+</div>
+<canvas id="canvas" width="480" height="640"></canvas>
+<div id="hint">方向鍵 / WASD 移動　　Space 發射雷射</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+// --- 狀態 ---
+let state = 'start'; // start | playing | dead | gameover
+let score = 0, lives = 3, level = 1;
+let frameCount = 0;
+let invincible = 0;      // 無敵幀數
+let shake = 0;           // 震動幀數
+
+// --- 星空背景 ---
+const stars = Array.from({length: 120}, () => ({
+  x: Math.random() * W,
+  y: Math.random() * H,
+  r: Math.random() * 1.5 + 0.3,
+  speed: Math.random() * 0.6 + 0.2,
+  bright: Math.random()
+}));
+
+// --- 玩家 ---
+const player = {
+  x: W / 2, y: H - 90,
+  w: 36, h: 56,
+  vx: 0, vy: 0,
+  speed: 5,
+  trail: []
+};
+
+// --- 集合 ---
+let asteroids = [];
+let lasers = [];
+let explosions = [];
+let particles = [];
+
+// --- 鍵盤 ---
+const keys = {};
+document.addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (e.code === 'Space') {
+    e.preventDefault();
+    if (state === 'playing') fireLaser();
+    if (state === 'start' || state === 'gameover') startGame();
+  }
+  if ((e.code === 'Enter') && (state === 'start' || state === 'gameover')) startGame();
+});
+document.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// --- 初始化 ---
+function startGame() {
+  state = 'playing';
+  score = 0; lives = 3; level = 1; frameCount = 0;
+  invincible = 0; shake = 0; laserCooldown = 0;
+  asteroids = []; lasers = []; explosions = []; particles = [];
+  player.x = W / 2; player.y = H - 90;
+  player.vx = 0; player.vy = 0;
+  player.trail = [];
+}
+
+// --- 產生隕石 ---
+function spawnAsteroid() {
+  const size = 18 + Math.random() * 24 + Math.min(level * 2, 20);
+  asteroids.push({
+    x: size + Math.random() * (W - size * 2),
+    y: -size,
+    r: size,
+    vx: (Math.random() - 0.5) * (1.5 + level * 0.3),
+    vy: 1.5 + Math.random() * 1.5 + level * 0.25,
+    rot: Math.random() * Math.PI * 2,
+    rotSpeed: (Math.random() - 0.5) * 0.05,
+    hp: size > 32 ? 2 : 1,
+    color: `hsl(${20 + Math.random()*30},60%,${35 + Math.random()*20}%)`
+  });
+}
+
+// --- 發射雷射 ---
+let laserCooldown = 0;
+function fireLaser() {
+  if (laserCooldown > 0) return;
+  lasers.push({ x: player.x, y: player.y - player.h / 2, vy: -14, w: 3, h: 18 });
+  laserCooldown = 12;
+}
+
+// --- 爆炸 ---
+function explode(x, y, big) {
+  const count = big ? 28 : 14;
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = Math.random() * (big ? 5 : 3) + 1;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 1,
+      decay: 0.025 + Math.random() * 0.02,
+      r: Math.random() * (big ? 4 : 2.5) + 1,
+      color: `hsl(${20 + Math.random()*40},100%,${55+Math.random()*20}%)`
+    });
+  }
+  explosions.push({ x, y, r: big ? 40 : 22, life: 1, decay: 0.06 });
+  if (big) shake = 14;
+}
+
+// --- 更新 ---
+function update() {
+  frameCount++;
+  if (laserCooldown > 0) laserCooldown--;
+  if (invincible > 0) invincible--;
+  if (shake > 0) shake--;
+
+  // 升級
+  level = 1 + Math.floor(score / 300);
+
+  // 星空
+  stars.forEach(s => { s.y += s.speed; if (s.y > H) s.y = 0; });
+
+  // 玩家移動
+  const sp = player.speed;
+  if (keys['ArrowLeft']  || keys['KeyA']) player.vx -= 0.8;
+  if (keys['ArrowRight'] || keys['KeyD']) player.vx += 0.8;
+  if (keys['ArrowUp']    || keys['KeyW']) player.vy -= 0.8;
+  if (keys['ArrowDown']  || keys['KeyS']) player.vy += 0.8;
+  player.vx *= 0.82; player.vy *= 0.82;
+  player.vx = Math.max(-sp, Math.min(sp, player.vx));
+  player.vy = Math.max(-sp, Math.min(sp, player.vy));
+  player.x += player.vx; player.y += player.vy;
+  player.x = Math.max(player.w/2, Math.min(W - player.w/2, player.x));
+  player.y = Math.max(player.h/2, Math.min(H - player.h/2, player.y));
+
+  // 尾焰粒子
+  player.trail.push({ x: player.x + (Math.random()-0.5)*8, y: player.y + player.h/2, life: 1, r: 5+Math.random()*4 });
+  player.trail = player.trail.filter(t => { t.y += 2; t.life -= 0.08; t.r *= 0.93; return t.life > 0; });
+
+  // 產生隕石
+  const spawnRate = Math.max(28 - level * 3, 10);
+  if (frameCount % spawnRate === 0) spawnAsteroid();
+
+  // 雷射移動
+  lasers = lasers.filter(l => { l.y += l.vy; return l.y > -l.h; });
+
+  // 隕石移動 & 碰撞
+  asteroids = asteroids.filter(a => {
+    a.x += a.vx; a.y += a.vy; a.rot += a.rotSpeed;
+    if (a.y > H + a.r * 2) return false;
+
+    // 雷射打到隕石
+    lasers = lasers.filter(l => {
+      const dx = l.x - a.x, dy = (l.y + l.h/2) - a.y;
+      if (Math.sqrt(dx*dx + dy*dy) < a.r + 4) {
+        a.hp--;
+        if (a.hp <= 0) {
+          explode(a.x, a.y, a.r > 28);
+          score += a.r > 28 ? 30 : 15;
+        } else {
+          // 被打到但未摧毀
+          particles.push({ x: a.x, y: a.y, vx:(Math.random()-0.5)*3, vy:-2, life:1, decay:0.08, r:3, color:'#fff' });
+        }
+        return false; // 雷射消失
+      }
+      return true;
+    });
+    if (a.hp <= 0) return false;
+
+    // 碰到玩家
+    if (invincible === 0) {
+      const dx = player.x - a.x, dy = player.y - a.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < a.r + 16) {
+        lives--;
+        invincible = 120;
+        shake = 20;
+        explode(a.x, a.y, false);
+        if (lives <= 0) { state = 'dead'; explode(player.x, player.y, true); setTimeout(()=>{ state='gameover'; }, 1200); }
+        return false;
+      }
+    }
+    return true;
+  });
+
+  // 粒子
+  particles = particles.filter(p => { p.x+=p.vx; p.y+=p.vy; p.vy+=0.1; p.life-=p.decay; return p.life>0; });
+  explosions = explosions.filter(e => { e.life-=e.decay; return e.life>0; });
+
+  // 分數 (時間)
+  if (frameCount % 6 === 0) score++;
+
+  // 更新 UI
+  document.getElementById('score').textContent = score;
+  document.getElementById('lives').textContent = '❤️'.repeat(Math.max(lives, 0));
+  document.getElementById('level').textContent = level;
+}
+
+// --- 繪製隕石（不規則多邊形）---
+function drawAsteroid(a) {
+  ctx.save();
+  ctx.translate(a.x, a.y);
+  ctx.rotate(a.rot);
+  ctx.beginPath();
+  const pts = 9;
+  for (let i = 0; i < pts; i++) {
+    const angle = (i / pts) * Math.PI * 2;
+    const rr = a.r * (0.75 + Math.sin(i * 2.3 + a.rot * 0.3) * 0.25);
+    i === 0 ? ctx.moveTo(Math.cos(angle)*rr, Math.sin(angle)*rr)
+             : ctx.lineTo(Math.cos(angle)*rr, Math.sin(angle)*rr);
+  }
+  ctx.closePath();
+  ctx.fillStyle = a.color;
+  ctx.fill();
+  ctx.strokeStyle = '#fff4';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  // 隕石光澤
+  ctx.beginPath();
+  ctx.arc(-a.r*0.25, -a.r*0.25, a.r*0.3, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.fill();
+  ctx.restore();
+}
+
+// --- 繪製太空梭 ---
+function drawShuttle(x, y, blink) {
+  if (blink) return;
+  ctx.save();
+  ctx.translate(x, y);
+
+  // 引擎光暈
+  ctx.shadowColor = '#4af';
+  ctx.shadowBlur = 18;
+
+  // 主機身
+  ctx.beginPath();
+  ctx.moveTo(0, -28);
+  ctx.bezierCurveTo(12, -10, 14, 10, 10, 28);
+  ctx.lineTo(-10, 28);
+  ctx.bezierCurveTo(-14, 10, -12, -10, 0, -28);
+  ctx.fillStyle = '#cce8ff';
+  ctx.fill();
+  ctx.strokeStyle = '#89c4e1';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // 駕駛艙窗
+  ctx.beginPath();
+  ctx.ellipse(0, -12, 7, 10, 0, 0, Math.PI*2);
+  ctx.fillStyle = '#1af8';
+  ctx.fill();
+  ctx.strokeStyle = '#0af';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // 左翼
+  ctx.beginPath();
+  ctx.moveTo(-10, 10);
+  ctx.lineTo(-28, 24);
+  ctx.lineTo(-10, 24);
+  ctx.closePath();
+  ctx.fillStyle = '#8bb8d8';
+  ctx.fill();
+
+  // 右翼
+  ctx.beginPath();
+  ctx.moveTo(10, 10);
+  ctx.lineTo(28, 24);
+  ctx.lineTo(10, 24);
+  ctx.closePath();
+  ctx.fillStyle = '#8bb8d8';
+  ctx.fill();
+
+  // 引擎噴嘴
+  ctx.beginPath();
+  ctx.rect(-6, 26, 12, 6);
+  ctx.fillStyle = '#556';
+  ctx.fill();
+
+  ctx.restore();
+}
+
+// --- 繪製 ---
+function draw() {
+  // 震動效果
+  let sx = 0, sy = 0;
+  if (shake > 0) { sx = (Math.random()-0.5)*8; sy = (Math.random()-0.5)*8; }
+
+  ctx.save();
+  ctx.translate(sx, sy);
+
+  // 背景
+  ctx.fillStyle = '#000010';
+  ctx.fillRect(0, 0, W, H);
+
+  // 星空
+  stars.forEach(s => {
+    const a = 0.3 + Math.sin(frameCount * 0.02 + s.bright * 10) * 0.3;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(200,220,255,${a})`;
+    ctx.fill();
+  });
+
+  // 尾焰
+  player.trail.forEach(t => {
+    const g = ctx.createRadialGradient(t.x, t.y, 0, t.x, t.y, t.r);
+    g.addColorStop(0, `rgba(100,180,255,${t.life})`);
+    g.addColorStop(0.5, `rgba(50,80,255,${t.life*0.5})`);
+    g.addColorStop(1, 'transparent');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(t.x, t.y, t.r, 0, Math.PI*2);
+    ctx.fill();
+  });
+
+  // 爆炸
+  explosions.forEach(e => {
+    const g = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, e.r);
+    g.addColorStop(0, `rgba(255,220,100,${e.life})`);
+    g.addColorStop(0.5, `rgba(255,80,0,${e.life*0.6})`);
+    g.addColorStop(1, 'transparent');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, e.r, 0, Math.PI*2);
+    ctx.fill();
+  });
+
+  // 粒子
+  particles.forEach(p => {
+    ctx.globalAlpha = p.life;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+    ctx.fillStyle = p.color;
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+
+  // 隕石
+  asteroids.forEach(drawAsteroid);
+
+  // 雷射
+  lasers.forEach(l => {
+    ctx.save();
+    ctx.shadowColor = '#0ff';
+    ctx.shadowBlur = 10;
+    const g = ctx.createLinearGradient(l.x, l.y, l.x, l.y + l.h);
+    g.addColorStop(0, '#fff');
+    g.addColorStop(1, '#0ff');
+    ctx.fillStyle = g;
+    ctx.fillRect(l.x - l.w/2, l.y, l.w, l.h);
+    ctx.restore();
+  });
+
+  // 玩家（閃爍效果）
+  const blink = invincible > 0 && Math.floor(frameCount / 4) % 2 === 0;
+  if (state !== 'dead') drawShuttle(player.x, player.y, blink);
+
+  // 開始畫面
+  if (state === 'start') {
+    ctx.fillStyle = 'rgba(0,0,16,0.7)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#0ff';
+    ctx.font = 'bold 36px Courier New';
+    ctx.shadowColor = '#0ff';
+    ctx.shadowBlur = 20;
+    ctx.fillText('太空梭躲避隕石', W/2, H/2 - 60);
+    ctx.shadowBlur = 0;
+    ctx.font = '18px Courier New';
+    ctx.fillStyle = '#aef';
+    ctx.fillText('方向鍵 / WASD 移動', W/2, H/2);
+    ctx.fillText('Space 發射雷射', W/2, H/2 + 30);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 20px Courier New';
+    const pulse = 0.5 + Math.sin(frameCount * 0.06) * 0.5;
+    ctx.globalAlpha = pulse;
+    ctx.fillText('按 Space / Enter 開始', W/2, H/2 + 80);
+    ctx.globalAlpha = 1;
+  }
+
+  // 遊戲結束
+  if (state === 'gameover') {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 40px Courier New';
+    ctx.fillStyle = '#f44';
+    ctx.shadowColor = '#f44';
+    ctx.shadowBlur = 20;
+    ctx.fillText('任務失敗', W/2, H/2 - 60);
+    ctx.shadowBlur = 0;
+    ctx.font = '22px Courier New';
+    ctx.fillStyle = '#ffd';
+    ctx.fillText(`最終分數：${score}`, W/2, H/2 - 10);
+    ctx.fillText(`達到等級：${level}`, W/2, H/2 + 25);
+    ctx.font = 'bold 18px Courier New';
+    ctx.fillStyle = '#aef';
+    const pulse = 0.5 + Math.sin(frameCount * 0.06) * 0.5;
+    ctx.globalAlpha = pulse;
+    ctx.fillText('按 Space / Enter 再試一次', W/2, H/2 + 75);
+    ctx.globalAlpha = 1;
+  }
+
+  ctx.restore();
+}
+
+// --- 主迴圈 ---
+function loop() {
+  if (state === 'playing' || state === 'dead') update();
+  else if (state === 'start' || state === 'gameover') {
+    frameCount++;
+    stars.forEach(s => { s.y += s.speed; if (s.y > H) s.y = 0; });
+    particles = particles.filter(p => { p.x+=p.vx; p.y+=p.vy; p.vy+=0.1; p.life-=p.decay; return p.life>0; });
+    explosions = explosions.filter(e => { e.life-=e.decay; return e.life>0; });
+  }
+  draw();
+  requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+</body>
+</html>
