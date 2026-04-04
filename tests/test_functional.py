@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
 """
-Function Tests - Space-Raiden
-測試單一 game function 的行為：直接呼叫 JS function，結果立即驗收。
-涵蓋：startGame、fireLaser、explode、level 公式、四向移動
+Functional Tests - Space-Raiden
+測試單一 game feature 的行為：直接呼叫 JS function，結果立即驗收。
+涵蓋：startGame、fireLaser、explode、level 公式、四向移動、碰撞
 
-執行方式: pytest tests/test_function.py -v -s
+執行方式: pytest tests/test_functional.py -v -s
 """
+import pytest
+
+pytestmark = pytest.mark.functional
 
 
 def _print(msg):
@@ -17,7 +20,7 @@ def _print(msg):
 
 
 def test_startgame_resets_state(game_page):
-    _print("\n[FUNC TEST] Test: Press Space to start, verify initial state")
+    _print("\n[FUNCTIONAL TEST] Test: Press Space to start, verify initial state")
     _print("  -> Action: Press Space to show game starting, then verify reset atomically")
     game_page.keyboard.press("Space")
     game_page.wait_for_timeout(1000)  # show game running visually
@@ -36,7 +39,7 @@ def test_startgame_resets_state(game_page):
 
 
 def test_startgame_clears_entities(game_page):
-    _print("\n[FUNC TEST] Test: After starting game, all entity arrays should be empty")
+    _print("\n[FUNCTIONAL TEST] Test: After starting game, all entity arrays should be empty")
     _print("  -> Action: Press Space to show game starting, then verify reset atomically")
     game_page.keyboard.press("Space")
     game_page.wait_for_timeout(1000)  # show game running visually
@@ -60,7 +63,7 @@ def test_startgame_clears_entities(game_page):
 
 
 def test_fire_laser_adds_projectile(game_page):
-    _print("\n[FUNC TEST] Test: Press Space in-game to fire laser")
+    _print("\n[FUNCTIONAL TEST] Test: Press Space in-game to fire laser")
     _print("  -> Action: Press Space to start -> Press Space again to fire laser -> check immediately")
     game_page.keyboard.press("Space")
     game_page.wait_for_timeout(500)
@@ -77,7 +80,7 @@ def test_fire_laser_adds_projectile(game_page):
 
 
 def test_fire_laser_respects_cooldown(game_page):
-    _print("\n[FUNC TEST] Test: Firing during cooldown should only produce 1 laser")
+    _print("\n[FUNCTIONAL TEST] Test: Firing during cooldown should only produce 1 laser")
     _print("  -> Action: Press Space to start -> fire twice rapidly -> verify only 1 laser")
     game_page.keyboard.press("Space")
     game_page.wait_for_timeout(500)
@@ -94,7 +97,7 @@ def test_fire_laser_respects_cooldown(game_page):
 
 
 def test_explode_small_generates_particles(game_page):
-    _print("\n[FUNC TEST] Test: Small explosion should generate particle effects")
+    _print("\n[FUNCTIONAL TEST] Test: Small explosion should generate particle effects")
     _print("  -> Action: Press Space to start -> trigger small explosion at center")
     game_page.keyboard.press("Space")
     game_page.wait_for_timeout(500)
@@ -110,7 +113,7 @@ def test_explode_small_generates_particles(game_page):
 
 
 def test_explode_big_generates_more_particles(game_page):
-    _print("\n[FUNC TEST] Test: Large explosion should generate MORE particles")
+    _print("\n[FUNCTIONAL TEST] Test: Large explosion should generate MORE particles")
     _print("  -> Action: Press Space to start -> trigger large explosion at center")
     game_page.keyboard.press("Space")
     game_page.wait_for_timeout(500)
@@ -126,7 +129,7 @@ def test_explode_big_generates_more_particles(game_page):
 
 
 def test_explode_big_triggers_screen_shake(game_page):
-    _print("\n[FUNC TEST] Test: Large explosion should trigger screen shake")
+    _print("\n[FUNCTIONAL TEST] Test: Large explosion should trigger screen shake")
     _print("  -> Action: Press Space to start -> trigger large explosion -> verify shake value")
     game_page.keyboard.press("Space")
     game_page.wait_for_timeout(500)
@@ -141,7 +144,7 @@ def test_explode_big_triggers_screen_shake(game_page):
 
 
 def test_level_formula(game_page):
-    _print("\n[FUNC TEST] Test: Score 600 should push level to 3")
+    _print("\n[FUNCTIONAL TEST] Test: Score 600 should push level to 3")
     _print("  -> Action: Press Space to start -> set score=600 -> verify #level DOM updates")
     game_page.keyboard.press("Space")
     game_page.wait_for_timeout(500)
@@ -155,7 +158,7 @@ def test_level_formula(game_page):
 
 
 def test_move_left(game_page):
-    _print("\n[FUNC TEST] Test: Hold ArrowLeft -> player.x should decrease")
+    _print("\n[FUNCTIONAL TEST] Test: Hold ArrowLeft -> player.x should decrease")
     _print("  -> Action: Start game -> record x -> hold ArrowLeft -> verify x decreased")
     game_page.keyboard.press("Space")
     before = game_page.evaluate("() => player.x")
@@ -168,7 +171,7 @@ def test_move_left(game_page):
 
 
 def test_move_right(game_page):
-    _print("\n[FUNC TEST] Test: Hold ArrowRight -> player.x should increase")
+    _print("\n[FUNCTIONAL TEST] Test: Hold ArrowRight -> player.x should increase")
     _print("  -> Action: Start game -> record x -> hold ArrowRight -> verify x increased")
     game_page.keyboard.press("Space")
     before = game_page.evaluate("() => player.x")
@@ -181,7 +184,7 @@ def test_move_right(game_page):
 
 
 def test_move_up(game_page):
-    _print("\n[FUNC TEST] Test: Hold ArrowUp -> player.y should decrease")
+    _print("\n[FUNCTIONAL TEST] Test: Hold ArrowUp -> player.y should decrease")
     _print("  -> Action: Start game -> record y -> hold ArrowUp -> verify y decreased")
     game_page.keyboard.press("Space")
     before = game_page.evaluate("() => player.y")
@@ -194,7 +197,7 @@ def test_move_up(game_page):
 
 
 def test_move_down(game_page):
-    _print("\n[FUNC TEST] Test: Hold ArrowDown -> player.y should increase")
+    _print("\n[FUNCTIONAL TEST] Test: Hold ArrowDown -> player.y should increase")
     _print("  -> Action: Start game -> record y -> hold ArrowDown -> verify y increased")
     game_page.keyboard.press("Space")
     before = game_page.evaluate("() => player.y")
@@ -204,3 +207,81 @@ def test_move_down(game_page):
     after = game_page.evaluate("() => player.y")
     assert after > before
     _print(f"  [OK] y: {before:.1f} -> {after:.1f} (moved down by {after - before:.1f}px)")
+
+
+# ── Collision Tests ───────────────────────────────────────────────────────────
+
+def test_collision_decreases_lives(game_page):
+    _print("\n[FUNCTIONAL TEST] Test: Asteroid collision -> lives should decrease by 1")
+    _print("  -> Action: Start game -> place asteroid on player -> call update() -> verify lives == 2")
+    game_page.keyboard.press("Space")
+    game_page.wait_for_timeout(200)
+    result = game_page.evaluate("""() => {
+        invincible = 0;
+        asteroids = [{ x: player.x, y: player.y, r: 20, hp: 1, vx: 0, vy: 0 }];
+        update();
+        return lives;
+    }""")
+    assert result == 2
+    _print(f"  [OK] lives={result} (decreased from 3 to 2 after collision)")
+
+
+def test_collision_sets_invincible(game_page):
+    _print("\n[FUNCTIONAL TEST] Test: Asteroid collision -> invincible should be set to 120")
+    _print("  -> Action: Start game -> place asteroid on player -> call update() -> verify invincible == 120")
+    game_page.keyboard.press("Space")
+    game_page.wait_for_timeout(200)
+    result = game_page.evaluate("""() => {
+        invincible = 0;
+        asteroids = [{ x: player.x, y: player.y, r: 20, hp: 1, vx: 0, vy: 0 }];
+        update();
+        return invincible;
+    }""")
+    assert result == 120
+    _print(f"  [OK] invincible={result} (120 frames protection activated)")
+
+
+def test_lives_zero_triggers_dead_state(game_page):
+    _print("\n[FUNCTIONAL TEST] Test: lives=1, collision -> state should become 'dead'")
+    _print("  -> Action: Start game -> set lives=1 -> place asteroid on player -> call update() -> verify state == 'dead'")
+    game_page.keyboard.press("Space")
+    game_page.wait_for_timeout(200)
+    result = game_page.evaluate("""() => {
+        lives = 1;
+        invincible = 0;
+        asteroids = [{ x: player.x, y: player.y, r: 20, hp: 1, vx: 0, vy: 0 }];
+        update();
+        return state;
+    }""")
+    assert result == "dead"
+    _print(f"  [OK] state='{result}' (game over triggered)")
+
+
+def test_large_asteroid_requires_two_hits(game_page):
+    _print("\n[FUNCTIONAL TEST] Test: Large asteroid (hp=2) requires 2 laser hits to destroy")
+    _print("  -> Action: Start game -> place hp=2 asteroid -> hit once -> hp=1 -> hit again -> destroyed + score +30")
+    game_page.keyboard.press("Space")
+    game_page.wait_for_timeout(200)
+    result = game_page.evaluate("""() => {
+        const ax = 240, ay = 200;
+        asteroids = [{ x: ax, y: ay, r: 30, hp: 2, vx: 0, vy: 0 }];
+        // l.y + l.h/2 == ay ensures center collision
+        lasers = [{ x: ax, y: ay - 9, w: 3, h: 18, vy: -14 }];
+        const scoreBefore = score;
+        update();
+        const hpAfterOne = asteroids.length > 0 ? asteroids[0].hp : -1;
+        // Second hit
+        if (asteroids.length > 0) {
+            lasers = [{ x: asteroids[0].x, y: asteroids[0].y - 9, w: 3, h: 18, vy: -14 }];
+            update();
+        }
+        return {
+            hpAfterOne,
+            destroyed: asteroids.length === 0,
+            scoreGained: score - scoreBefore
+        };
+    }""")
+    assert result["hpAfterOne"] == 1
+    assert result["destroyed"] is True
+    assert result["scoreGained"] >= 30
+    _print(f"  [OK] hp after 1st hit={result['hpAfterOne']}, destroyed={result['destroyed']}, score gained={result['scoreGained']}")

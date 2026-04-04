@@ -2,14 +2,21 @@
 
 ## 概覽
 
-本專案採用 **Python + Playwright** 進行瀏覽器自動化測試，分為兩大類：
+本專案採用 **Python + Playwright** 進行瀏覽器自動化測試，依測試目的分為五類：
 
-| 測試類型 | 說明 | 檔案 |
-|----------|------|------|
-| Function Test | 單一獨立功能驗證，每個測試只觸發一個事件或機制 | `tests/test_function.py` |
-| Integration Test | 多功能互動驗證，測試兩個以上事件互相影響的結果 | `tests/test_integration.py` |
+| 測試類型 | 視角 | 說明 | 檔案 | 數量 |
+|----------|------|------|------|------|
+| Smoke Test | 黑箱 | 頁面基本可用性，開機確認 | `tests/test_smoke.py` | 10 |
+| Unit Test | 白箱 | 純公式與算法驗算，最小單元 | `tests/test_unit.py` | 8 |
+| Functional Test | 白箱 | 單一 game feature 行為驗收 | `tests/test_functional.py` | 16 |
+| Integration Test | 白/黑箱 | 多系統串聯，依賴真實 game loop | `tests/test_integration.py` | 8 |
+| Regression Test | 黑箱 | 邊界情境與防 bug 復發守衛 | `tests/test_regression.py` | 6 |
+| **合計** | | | | **48** |
 
-> 舊有的 `test_ui.py` / `test_api.py` 將依此規範逐步遷移至新分類。
+### 白箱 vs 黑箱
+
+- **白箱**：透過 `page.evaluate()` 存取 JS 內部變數與函式（state、lives、score、lasers 等）
+- **黑箱**：只透過鍵盤操作與 DOM 觀察（`#score`、`#lives`、`#level` 等元素）
 
 ---
 
@@ -56,17 +63,45 @@ playwright install chromium
 
 ---
 
+## 專案設定：pyproject.toml
+
+pytest marker 在 `pyproject.toml` 統一管理：
+
+```toml
+[tool.pytest.ini_options]
+markers = [
+    "smoke:       基本頁面可用性，開機確認（黑箱）",
+    "unit:        純公式與算法驗算，最小單元（白箱）",
+    "functional:  單一 game feature 行為驗收（白箱）",
+    "integration: 多系統串聯，依賴 game loop（白/黑箱）",
+    "regression:  邊界情境與防 bug 復發守衛（黑箱）",
+]
+```
+
+每個測試檔以 `pytestmark` 宣告所屬分類：
+
+```python
+import pytest
+pytestmark = pytest.mark.functional  # 或 smoke / unit / integration / regression
+```
+
+---
+
 ## 測試目錄結構
 
 ```
 second_project/
+├── pyproject.toml                 # pytest marker 設定
 ├── space_dodge.html
 ├── docs/
-│   └── testSpec.md            ← 本文件
+│   └── testSpec.md               ← 本文件
 └── tests/
-    ├── conftest.py            # 共用 fixture：本機伺服器 + game_page
-    ├── test_function.py       # Function Tests（單一功能）
-    └── test_integration.py    # Integration Tests（多功能互動）
+    ├── conftest.py               # 共用 fixture：本機伺服器 + game_page
+    ├── test_smoke.py             # Smoke Tests（黑箱，10 項）
+    ├── test_unit.py              # Unit Tests（白箱，8 項）
+    ├── test_functional.py        # Functional Tests（白箱，16 項）
+    ├── test_integration.py       # Integration Tests（白/黑箱，8 項）
+    └── test_regression.py        # Regression Tests（黑箱，6 項）
 ```
 
 ---
@@ -104,87 +139,149 @@ def game_page(page):
 
 ---
 
-## Function Test 規範
+## 執行測試
+
+### 開發流程建議
+
+```bash
+# 改完立即跑（~15s）
+pytest -m "unit or smoke"
+
+# commit 前跑（~40s）
+pytest -m "not integration"
+
+# PR / 上線前全跑（~90s）
+pytest
+```
+
+### 按分類執行
+
+```bash
+pytest -m smoke          # ~10s  開機確認
+pytest -m unit           # ~5s   公式驗算
+pytest -m functional     # ~30s  功能行為
+pytest -m integration    # ~60s  系統串聯
+pytest -m regression     # ~15s  邊界防守
+```
+
+### 其他選項
+
+```bash
+# 詳細輸出
+pytest tests/ -v -s
+
+# 可視化模式（看瀏覽器操作）
+pytest tests/ -v -s --headed --slowmo 2000
+
+# 產生 HTML 報告
+pytest tests/ -v --html=report.html --self-contained-html
+```
+
+---
+
+## Smoke Test 規範
 
 ### 定義
 
-> 單一獨立功能：每個測試只觸發 **一個事件或機制**，不依賴其他功能的輸出。
-
-### 原則
-
-- 使用 `page.keyboard.press()` 觸發按鍵事件（可視化）
-- 使用 `page.evaluate()` 原子性讀取或設定狀態
-- 每個測試只驗證一個功能點
-- 命名規則：`test_<功能名稱>()`
+> 頁面載入後的 DOM 初始狀態與基本互動，只觀察畫面元素，不碰 JS 內部。
 
 ### 測試項目清單
-
-#### 遊戲開啟
-
-| 測試名稱 | 操作 | 驗證點 |
-|----------|------|--------|
-| `test_press_space_starts_game` | 按 Space | `state == 'playing'` |
-| `test_press_enter_starts_game` | 按 Enter | `state == 'playing'` |
-| `test_start_resets_score` | startGame() | `score == 0` |
-| `test_start_resets_lives` | startGame() | `lives == 3` |
-| `test_start_clears_all_entities` | startGame() | asteroids/lasers/particles/explosions 全為 0 |
-
-#### 畫面元素
 
 | 測試名稱 | 操作 | 驗證點 |
 |----------|------|--------|
 | `test_canvas_dimensions` | 載入頁面 | width=480, height=640 |
-| `test_initial_score_display` | 載入頁面 | `#score` = "0" |
+| `test_canvas_is_visible` | 載入頁面 | `#canvas` 可見 |
+| `test_initial_score_is_zero` | 載入頁面 | `#score` = "0" |
 | `test_initial_lives_display` | 載入頁面 | `#lives` = "❤️❤️❤️" |
-| `test_initial_level_display` | 載入頁面 | `#level` = "1" |
+| `test_initial_level_is_one` | 載入頁面 | `#level` = "1" |
+| `test_press_space_starts_game` | 按 Space | `state == 'playing'` |
+| `test_press_enter_starts_game` | 按 Enter | `state == 'playing'` |
+| `test_score_increases_over_time` | 等 2 秒 | `#score` > 0 |
 | `test_hint_text_visible` | 載入頁面 | `#hint` 含 "Space" |
+| `test_ui_bar_visible` | 載入頁面 | `#ui` 可見 |
 
-#### 玩家移動
+---
 
-| 測試名稱 | 操作 | 驗證點 |
-|----------|------|--------|
-| `test_move_left` | 按住 ArrowLeft / A | `player.x` 減少 |
-| `test_move_right` | 按住 ArrowRight / D | `player.x` 增加 |
-| `test_move_up` | 按住 ArrowUp / W | `player.y` 減少 |
-| `test_move_down` | 按住 ArrowDown / S | `player.y` 增加 |
-| `test_boundary_left` | 持續向左移動 | `player.x` 不小於 `player.w/2` |
-| `test_boundary_right` | 持續向右移動 | `player.x` 不大於 `W - player.w/2` |
-| `test_boundary_top` | 持續向上移動 | `player.y` 不小於 `player.h/2` |
-| `test_boundary_bottom` | 持續向下移動 | `player.y` 不大於 `H - player.h/2` |
+## Unit Test 規範
 
-#### 發射雷射
+### 定義
 
-| 測試名稱 | 操作 | 驗證點 |
-|----------|------|--------|
-| `test_fire_laser_creates_projectile` | 遊戲中按 Space | `lasers.length == 1` |
-| `test_fire_laser_sets_cooldown` | fireLaser() | `laserCooldown == 12` |
-| `test_cooldown_prevents_double_fire` | 連按兩次 Space | `lasers.length == 1` |
+> 單一公式或算法的正確性驗算，不依賴 game loop，結果完全確定。
 
-#### 分數系統
+### 原則
 
-| 測試名稱 | 操作 | 驗證點 |
-|----------|------|--------|
-| `test_score_increases_over_time` | 遊戲運行 2 秒 | `#score` > 0 |
-| `test_level_formula_300` | score=300 | level=2 |
-| `test_level_formula_600` | score=600 | level=3 |
+- 透過 `page.evaluate()` 直接執行公式，不依賴遊戲狀態
+- 每個測試驗證一條公式在多個邊界值的行為
+- 若遊戲程式碼修改了任何公式，這類測試最先失敗
 
-#### 隕石生成
+### 測試項目清單
 
-| 測試名稱 | 操作 | 驗證點 |
-|----------|------|--------|
-| `test_asteroids_spawn_naturally` | 遊戲運行 3 秒 | `asteroids.length` > 0 |
-| `test_asteroid_has_valid_radius` | spawnAsteroid() | `r >= 18` |
-| `test_asteroid_moves_downward` | spawnAsteroid() | `vy > 0` |
-| `test_asteroid_has_hp` | spawnAsteroid() | `hp >= 1` |
-| `test_large_asteroid_has_more_hp` | spawnAsteroid(r>32) | `hp == 2` |
+| 測試名稱 | 驗證公式 | 邊界值 |
+|----------|----------|--------|
+| `test_level_formula_boundaries` | `1 + floor(score/300)` | score: 0, 299, 300, 600, 900 |
+| `test_collision_player_radius` | `dist < a.r + 16` | r=20 → threshold=36 |
+| `test_collision_laser_radius` | `dist < a.r + 4` | r=20 → threshold=24 |
+| `test_boundary_clamp_x` | `max(w/2, min(W-w/2, x))` | 越界、邊界、中間值 |
+| `test_boundary_clamp_y` | `max(h/2, min(H-h/2, y))` | 越界、邊界、中間值 |
+| `test_score_small_asteroid` | `r <= 28 → +15` | r=28 |
+| `test_score_large_asteroid` | `r > 28 → +30` | r=29 |
+| `test_spawn_interval_formula` | `max(10, 28 - level*3)` | level: 1, 3, 6, 9 |
 
-#### 爆炸特效
+---
 
-| 測試名稱 | 操作 | 驗證點 |
-|----------|------|--------|
-| `test_small_explosion_particles` | explode(false) | `particles.length >= 14` |
-| `test_big_explosion_more_particles` | explode(true) | `particles.length >= 28` |
-| `test_big_explosion_screen_shake` | explode(true) | `shake == 14` |
+## Functional Test 規範
+
+### 定義
+
+> 單一 game feature 的完整行為驗收，直接呼叫 JS function，結果立即可讀。
+
+### 原則
+
+- 使用 `page.evaluate()` 原子性呼叫 game function 並讀取結果
+- 每個測試只驗證一個功能點
+- 命名規則：`test_<feature>_<expected_behavior>()`
+
+### 測試項目清單
+
+#### 遊戲啟動（2 項）
+| 測試名稱 | 驗證點 |
+|----------|--------|
+| `test_startgame_resets_state` | state=playing, score=0, lives=3, level=1 |
+| `test_startgame_clears_entities` | asteroids/lasers/explosions/particles 全為 0 |
+
+#### 雷射（2 項）
+| 測試名稱 | 驗證點 |
+|----------|--------|
+| `test_fire_laser_adds_projectile` | lasers.length=1, laserCooldown=12 |
+| `test_fire_laser_respects_cooldown` | 連發兩次 → lasers.length=1 |
+
+#### 爆炸特效（3 項）
+| 測試名稱 | 驗證點 |
+|----------|--------|
+| `test_explode_small_generates_particles` | particles >= 14, explosions >= 1 |
+| `test_explode_big_generates_more_particles` | particles >= 28, explosions >= 1 |
+| `test_explode_big_triggers_screen_shake` | shake == 14 |
+
+#### 等級（1 項）
+| 測試名稱 | 驗證點 |
+|----------|--------|
+| `test_level_formula` | score=600 → DOM #level=3, JS level=3 |
+
+#### 玩家移動（4 項）
+| 測試名稱 | 驗證點 |
+|----------|--------|
+| `test_move_left` | ArrowLeft → player.x 減少 |
+| `test_move_right` | ArrowRight → player.x 增加 |
+| `test_move_up` | ArrowUp → player.y 減少 |
+| `test_move_down` | ArrowDown → player.y 增加 |
+
+#### 碰撞（4 項）
+| 測試名稱 | 驗證點 |
+|----------|--------|
+| `test_collision_decreases_lives` | 隕石在玩家位置 → lives=2 |
+| `test_collision_sets_invincible` | 碰撞後 → invincible=120 |
+| `test_lives_zero_triggers_dead_state` | lives=1 碰撞 → state='dead' |
+| `test_large_asteroid_requires_two_hits` | hp=2 → 一發 hp=1，兩發消失 +30分 |
 
 ---
 
@@ -192,82 +289,60 @@ def game_page(page):
 
 ### 定義
 
-> 多功能互動：每個測試涉及 **兩個以上獨立事件的互動結果**，驗證系統整合行為。
+> 多個子系統協同運作：需等待真實 game loop 執行，驗收系統整合結果。
 
 ### 原則
 
-- 需先完成對應 Function Test 才能撰寫 Integration Test
-- 模擬完整的使用者操作流程
-- 驗證點為互動後的最終狀態（DOM 或 JS 狀態）
-- 命名規則：`test_<事件A>_and_<事件B>_<結果>()`
+- 需先有對應的 Functional Test 才能寫 Integration Test
+- 等待時間依場景決定（生成需 3s，碰撞需 < 1s）
+- 命名規則：`test_<系統A>_<系統B>_<結果>()`
 
 ### 測試項目清單
 
-#### 飛機 × 隕石
-
+#### 隕石自然生成（2 項）
 | 測試名稱 | 情境 | 驗證點 |
 |----------|------|--------|
-| `test_collision_reduces_lives` | 飛機撞隕石 | `lives` 從 3 變 2，`#lives` DOM 更新 |
-| `test_collision_triggers_invincibility` | 飛機撞隕石 | `invincible > 0`（無敵幀數啟動） |
-| `test_three_collisions_causes_gameover` | 連撞 3 次 | `state == 'gameover'` |
-| `test_moving_into_asteroid_loses_life` | 玩家向隕石方向移動 → 碰撞 | `lives` 減少 |
+| `test_spawn_asteroid_increases_count` | 等 3 秒 | asteroids.length > 0 |
+| `test_spawn_asteroid_properties` | 等 3 秒 | r>=18, vy>0, hp>=1 |
 
-#### 雷射 × 隕石
-
+#### 邊界 clamp（4 項）
 | 測試名稱 | 情境 | 驗證點 |
 |----------|------|--------|
-| `test_laser_destroys_small_asteroid` | 雷射打小隕石（hp=1） | asteroid 從陣列移除 |
-| `test_laser_scores_on_small_asteroid` | 雷射打小隕石 | `score` 增加 15 |
-| `test_laser_scores_on_big_asteroid` | 雷射打大隕石 | `score` 增加 30 |
-| `test_large_asteroid_needs_two_hits` | 雷射打大隕石（hp=2）兩次 | 第一發 hp=1，第二發移除 |
-| `test_laser_explosion_on_hit` | 雷射擊中隕石 | `explosions.length > 0` 且 `particles.length > 0` |
+| `test_boundary_left` | 持續按左 3s | x >= 18 |
+| `test_boundary_right` | 持續按右 3s | x <= 462 |
+| `test_boundary_top` | 持續按上 3s | y >= 28 |
+| `test_boundary_bottom` | 持續按下 3s | y <= 612 |
 
-#### 移動 × 發射
-
+#### 分數與射擊（2 項）
 | 測試名稱 | 情境 | 驗證點 |
 |----------|------|--------|
-| `test_move_and_shoot_simultaneously` | 按住方向鍵同時按 Space | 玩家位置改變 且 `lasers.length >= 1` |
-| `test_laser_position_matches_player` | 發射雷射 | `lasers[0].x` 接近 `player.x` |
-
-#### 分數 × 等級 × 隕石
-
-| 測試名稱 | 情境 | 驗證點 |
-|----------|------|--------|
-| `test_level_up_increases_asteroid_speed` | score=300（level=2） vs level=1 | level 2 隕石 `vy` 平均值更大 |
-| `test_level_up_increases_spawn_rate` | level=5 | 隕石生成頻率比 level=1 更快 |
-
-#### 遊戲流程
-
-| 測試名稱 | 情境 | 驗證點 |
-|----------|------|--------|
-| `test_gameover_then_restart_resets_state` | 遊戲結束後按 Space 重開 | score=0, lives=3, level=1, state='playing' |
-| `test_score_accumulates_from_survival_and_kills` | 存活時間 + 擊殺隕石 | 最終分數 > 純存活分數 |
+| `test_score_dom_syncs_with_js` | set score=999，等 200ms | DOM 分數 == JS score |
+| `test_laser_destroys_asteroid_and_scores` | 射擊標記隕石，等 800ms | 隕石消失，score +15 |
 
 ---
 
-## 執行測試
+## Regression Test 規範
 
-### 基本指令
+### 定義
 
-```bash
-# 全部測試
-pytest tests/ -v
+> 邊界情境與易錯行為的守衛測試，確保特定行為在未來開發中不會悄悄退化。
 
-# 只跑 Function Tests
-pytest tests/test_function.py -v
+### 原則
 
-# 只跑 Integration Tests
-pytest tests/test_integration.py -v
+- 每條測試對應一個具體的「容易被改壞的行為」
+- 測試內容應有明確的防守說明（docstring 標注）
+- 命名規則：`test_<被防守的行為>()`
 
-# 可視化模式（看瀏覽器操作）
-pytest tests/ -v -s --headed --slowmo 2000
-```
+### 測試項目清單
 
-### 產生報告
-
-```bash
-pytest tests/ -v --html=report.html --self-contained-html
-```
+| 測試名稱 | 防守的行為 |
+|----------|----------|
+| `test_invincible_prevents_double_damage` | 同幀兩顆隕石只扣一次血 |
+| `test_dead_state_blocks_laser` | dead 狀態按 Space 不發射雷射 |
+| `test_score_stops_when_not_playing` | gameover 狀態分數不自動增加 |
+| `test_dead_transitions_to_gameover` | dead → 1200ms → gameover 狀態轉換 |
+| `test_restart_from_gameover` | gameover 按 Space 完整重置遊戲 |
+| `test_invincible_decrements_each_frame` | invincible 每幀遞減 1 |
 
 ---
 
@@ -275,20 +350,21 @@ pytest tests/ -v --html=report.html --self-contained-html
 
 每次新增功能或修改遊戲邏輯時，依序確認：
 
-- [ ] 為新功能補充 **Function Test**（單一行為驗證）
+- [ ] 若修改了任何公式（碰撞、分數、等級、生成頻率）→ 補充或更新 **Unit Test**
+- [ ] 為新 game function 補充 **Functional Test**（單一行為驗證）
 - [ ] 為新功能與現有系統的互動補充 **Integration Test**
+- [ ] 若發現新的邊界行為 → 補充 **Regression Test** 防止復發
 - [ ] 本機執行 `pytest tests/ -v` 全部通過
-- [ ] 可視化模式跑過一次確認瀏覽器行為符合預期
+- [ ] 執行快速版確認無誤：`pytest -m "unit or smoke"`
 
 ---
 
 ## 測試分類判斷原則
 
-> 不確定要放哪類時，參考以下問題：
-
 | 問題 | 答案 → 分類 |
 |------|------------|
-| 這個測試只涉及一個功能/按鍵/函式嗎？ | 是 → Function Test |
-| 測試結果依賴兩個以上系統的互動嗎？ | 是 → Integration Test |
-| 可以不啟動其他功能就單獨驗證嗎？ | 是 → Function Test |
-| 需要先觸發 A 才能觀察 B 的變化嗎？ | 是 → Integration Test |
+| 只是驗算一條數學公式嗎？ | 是 → Unit Test |
+| 測試一個 game function 的完整行為嗎？ | 是 → Functional Test |
+| 需要等待 game loop 跑一段時間嗎？ | 是 → Integration Test |
+| 在防止一個已知邊界行為退化嗎？ | 是 → Regression Test |
+| 只觀察 DOM，不碰 JS 內部嗎？ | 是 → Smoke 或 Regression Test |

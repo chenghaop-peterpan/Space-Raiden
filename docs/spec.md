@@ -140,7 +140,7 @@ level = 1 + floor(score / 300)
    - **新增**：新功能、新檔案
    - **修改**：既有功能調整
    - **修復**：Bug 修復
-   - **測試**：新增的 Function Test / Integration Test
+   - **測試**：新增的 Unit / Functional / Integration / Smoke / Regression Test
 
 2. 更新 `changelog/SUMMARY.md`，在表格**最上方**插入新版本一行
 
