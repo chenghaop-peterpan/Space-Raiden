@@ -5,6 +5,9 @@ Smoke Tests - Space-Raiden
 
 執行方式: pytest tests/test_smoke.py -v -s
 """
+import pytest
+
+pytestmark = pytest.mark.smoke
 
 
 def test_canvas_dimensions(game_page):

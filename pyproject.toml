@@ -1,0 +1,8 @@
+[tool.pytest.ini_options]
+markers = [
+    "smoke:       基本頁面可用性，開機確認（黑箱）",
+    "unit:        純公式與算法驗算，最小單元（白箱）",
+    "functional:  單一 game feature 行為驗收（白箱）",
+    "integration: 多系統串聯，依賴 game loop（白/黑箱）",
+    "regression:  邊界情境與防 bug 復發守衛（黑箱）",
+]

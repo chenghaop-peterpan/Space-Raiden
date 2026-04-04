@@ -25,11 +25,22 @@
 
 ## 測試規範
 
-每次新增功能或修改遊戲邏輯時，**必須**同步補充以下兩類測試：
+本專案採用五層測試架構，每次新增功能或修改邏輯時依需求補充：
 
-- **Smoke Test（冒煙測試）**：驗證頁面載入後的 DOM 初始狀態與基本互動，確認遊戲可正常開啟
-- **Function Test（功能測試）**：直接呼叫遊戲 JS 函式，驗證單一邏輯行為（如 `startGame`、`fireLaser`、`explode`、移動）
-- **Integration Test（整合測試）**：透過真實 game loop 驗收多系統協同行為（如 asteroid 自然生成、邊界 clamp）
+| 類型 | 視角 | 說明 |
+|------|------|------|
+| **Smoke Test** | 黑箱 | 頁面基本可用性，開機確認 |
+| **Unit Test** | 白箱 | 純公式驗算（碰撞、分數、等級、生成頻率） |
+| **Functional Test** | 白箱 | 單一 game feature 行為（startGame、fireLaser、explode 等） |
+| **Integration Test** | 白/黑箱 | 多系統串聯，依賴真實 game loop |
+| **Regression Test** | 黑箱 | 邊界情境守衛，防止已知行為退化 |
+
+**快速執行：**
+```bash
+pytest -m "unit or smoke"      # ~15s 改完立即跑
+pytest -m "not integration"    # ~40s commit 前
+pytest                         # ~90s 上線前全跑
+```
 
 詳細環境設定與測試撰寫規範請參閱 [`docs/testSpec.md`](docs/testSpec.md)
 
@@ -55,7 +66,9 @@ second_project/
 │   └── testSpec.md        # 測試規範文件
 └── tests/
     ├── conftest.py        # pytest fixture（本機伺服器）
-    ├── test_smoke.py      # Smoke tests
-    ├── test_function.py   # Function tests
-    └── test_integration.py # Integration tests
+    ├── test_smoke.py        # Smoke tests      (10)
+    ├── test_unit.py         # Unit tests       (8)
+    ├── test_functional.py   # Functional tests (16)
+    ├── test_integration.py  # Integration tests (8)
+    └── test_regression.py   # Regression tests  (6)
 ```

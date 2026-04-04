@@ -6,6 +6,9 @@ Integration Tests - Space-Raiden
 
 執行方式: pytest tests/test_integration.py -v -s
 """
+import pytest
+
+pytestmark = pytest.mark.integration
 
 
 def _print(msg):
@@ -86,3 +89,38 @@ def test_boundary_bottom(game_page):
     result = game_page.evaluate("() => ({ y: player.y, max: H - player.h / 2 })")
     assert result["y"] <= result["max"]
     _print(f"  [OK] y={result['y']:.1f}, bottom boundary={result['max']:.1f} (clamped correctly)")
+
+
+# ── Scoring & Game Loop Tests ─────────────────────────────────────────────────
+
+def test_score_dom_syncs_with_js(game_page):
+    _print("\n[INTEGRATION TEST] Test: JS score change should reflect in #score DOM")
+    _print("  -> Action: Start game -> set score=999 -> wait for game loop -> verify DOM == JS score")
+    game_page.keyboard.press("Space")
+    game_page.wait_for_timeout(200)
+    game_page.evaluate("() => { score = 999; }")
+    game_page.wait_for_timeout(200)
+    dom_score = int(game_page.locator("#score").inner_text())
+    js_score = game_page.evaluate("() => score")
+    assert dom_score == js_score
+    assert dom_score >= 999
+    _print(f"  [OK] #score DOM = '{dom_score}', JS score = {js_score} (synced)")
+
+
+def test_laser_destroys_asteroid_and_scores(game_page):
+    _print("\n[INTEGRATION TEST] Test: Laser hitting asteroid -> asteroid removed + score increases")
+    _print("  -> Action: Start game -> fix player pos -> place asteroid in laser path -> fire -> wait -> verify")
+    game_page.keyboard.press("Space")
+    game_page.wait_for_timeout(200)
+    initial_score = game_page.evaluate("""() => {
+        player.x = 240; player.y = 550; player.vx = 0; player.vy = 0;
+        asteroids = [{ x: 240, y: 470, r: 20, hp: 1, vx: 0, vy: 0, _test: true }];
+        laserCooldown = 0;
+        fireLaser();
+        return score;
+    }""")
+    game_page.wait_for_timeout(800)
+    result = game_page.evaluate("() => ({ remaining: asteroids.filter(a => a._test).length, score })")
+    assert result["remaining"] == 0
+    assert result["score"] >= initial_score + 15
+    _print(f"  [OK] test asteroid destroyed, score gained={result['score'] - initial_score}")
