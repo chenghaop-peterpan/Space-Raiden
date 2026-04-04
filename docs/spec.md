@@ -128,3 +128,32 @@ level = 1 + floor(score / 300)
 - 所有物件以陣列管理，每幀用 `filter` 移除過期物件
 - 使用 `requestAnimationFrame` 驅動主迴圈，目標 60 fps
 - 無外部資源載入，首幀即可渲染
+
+---
+
+## 版本管理規範
+
+每次發版或功能迭代時，依序執行：
+
+1. 在 `changelog/` 新增 `vX.Y.Z.md`，記錄以下內容：
+   - **主題**：一句話說明本次迭代核心目標
+   - **新增**：新功能、新檔案
+   - **修改**：既有功能調整
+   - **修復**：Bug 修復
+   - **測試**：新增的 Function Test / Integration Test
+
+2. 更新 `changelog/SUMMARY.md`，在表格**最上方**插入新版本一行
+
+3. 建立 git tag 並推上遠端：
+   ```bash
+   git tag vX.Y.Z
+   git push origin vX.Y.Z
+   ```
+
+### 版本號規則（Semantic Versioning）
+
+| 類型 | 版號變化 | 範例 |
+|------|----------|------|
+| 破壞性變更 / 重大新功能 | Major +1 | v1.0.0 → v2.0.0 |
+| 新功能（向下相容） | Minor +1 | v1.0.0 → v1.1.0 |
+| Bug 修復 / 小調整 | Patch +1 | v1.0.0 → v1.0.1 |

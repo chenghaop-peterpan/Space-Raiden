@@ -30,6 +30,10 @@
 
 詳細環境設定與測試撰寫規範請參閱 [`docs/testSpec.md`](docs/testSpec.md)
 
+## 版本記錄
+
+各版本開發主題與改動內容詳見 [`changelog/SUMMARY.md`](changelog/SUMMARY.md)
+
 ## 技術規格
 
 詳見 [`docs/spec.md`](docs/spec.md)
@@ -40,6 +44,9 @@
 second_project/
 ├── space_dodge.html       # 遊戲本體（HTML + CSS + JavaScript 單檔）
 ├── README.md
+├── changelog/
+│   ├── SUMMARY.md         # 所有版本摘要
+│   └── v1.0.0.md          # v1.0.0 改動記錄
 ├── docs/
 │   ├── spec.md            # 技術規格文件
 │   └── testSpec.md        # 測試規範文件
