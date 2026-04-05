@@ -3,8 +3,18 @@ name: Run Pytest CI
 on:
   push:
     branches: ["main", "release/**"]
+    paths:
+      - 'space_dodge.html'
+      - 'tests/**'
+      - 'requirements.txt'
+      - '.github/workflows/**'
   pull_request:
     branches: ["main"]
+    paths:
+      - 'space_dodge.html'
+      - 'tests/**'
+      - 'requirements.txt'
+      - '.github/workflows/**'
 
 jobs:
   test:

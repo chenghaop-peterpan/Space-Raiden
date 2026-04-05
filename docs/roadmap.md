@@ -18,6 +18,7 @@
 | v1.3.2 | CLAUDE.md 規則補強：changelog 必做、merge 後刪 branch |
 | v1.3.3 | requirements.txt + roadmap.md 備忘錄機制 |
 | v1.3.4 | CI 優化：Playwright caching + pip cache + 觸發條件精簡 |
+| v1.3.5 | CI paths filter + 備忘錄同步 |
 
 ---
 
@@ -28,7 +29,7 @@
 | ✅ | requirements.txt | 統一管理依賴版本 |
 | ✅ | Playwright browser caching | `actions/cache@v4`，key 綁定 playwright 版本 |
 | ✅ | 觸發條件精簡 | 移除 `feat/**` push，feature branch 僅 PR 時觸發 |
-| ⬜ | paths filter | 只改 `space_dodge.html` 或 `tests/` 才觸發 CI |
+| ✅ | paths filter | `space_dodge.html` / `tests/**` / `requirements.txt` / `.github/workflows/**` |
 | ⬜ | smoke-first 分層執行 | PR 時先跑 smoke（快），merge 到 main 再跑全套 |
 
 ---
