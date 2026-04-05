@@ -106,6 +106,43 @@ second_project/
 
 ---
 
+## Fixture 設計原則（核心概念）
+
+### 兩個 Fixture，兩種視角
+
+測試 Fixture 依視角分為兩種，**選用哪個 fixture 就決定了測試的性質**：
+
+| Fixture | 起始狀態 | 進入方式 | 適用測試類型 |
+|---------|----------|----------|-------------|
+| `game_page` | `state = 'start'`（遊戲開頭畫面） | 頁面載入，等待 `#canvas` | Smoke、Integration、Regression |
+| `playing_page` | `state = 'playing'`（直接進入遊戲） | JS 呼叫 `startGame('player')` | Unit、Functional |
+
+### 設計理由
+
+**黑箱測試用 `game_page`**：從使用者視角出發，透過鍵盤操作導航整個 UI 流程（start → menu → playing），觀察 DOM 元素與遊戲反應。
+
+**白箱測試用 `playing_page`**：直接繞過選單 UI，以 JS 啟動遊戲核心，確保畫面與遊戲狀態一致。這樣測試時瀏覽器視窗顯示的是實際遊戲畫面，而不是停在選單，避免視覺混淆與 `frameCount` 累積的副作用。
+
+```
+黑箱（game_page）：  載入 → start 畫面 → [鍵盤 Space×2] → playing
+白箱（playing_page）：載入 → [JS startGame()] → playing（直接）
+```
+
+### 錯誤示範
+
+```python
+# ❌ 白箱測試用 game_page + 按 Space → 停在 menu 畫面，視覺混淆
+def test_collision(game_page):
+    game_page.keyboard.press("Space")  # → 進入 menu，不是 playing
+    game_page.evaluate("() => update()")
+
+# ✓ 白箱測試用 playing_page → 直接在 playing 狀態執行
+def test_collision(playing_page):
+    playing_page.evaluate("() => update()")
+```
+
+---
+
 ## conftest.py — 共用 Fixture
 
 ```python
@@ -116,6 +153,11 @@ import os
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PORT = 8765
+
+@pytest.fixture(scope="session")
+def browser_type_launch_args(browser_type_launch_args):
+    """強制 headed 模式，測試時可看到瀏覽器畫面"""
+    return {**browser_type_launch_args, "headless": False}
 
 @pytest.fixture(scope="session", autouse=True)
 def local_server():
@@ -131,10 +173,16 @@ def local_server():
 
 @pytest.fixture
 def game_page(page):
-    """開啟遊戲頁面並等待畫布載入"""
+    """黑箱測試用：開啟遊戲頁面，停在 start 畫面（state='start'）"""
     page.goto(f"http://localhost:{PORT}/space_dodge.html")
     page.wait_for_selector("#canvas")
     return page
+
+@pytest.fixture
+def playing_page(game_page):
+    """白箱測試用：直接以 JS 啟動遊戲，跳過選單 UI（state='playing'）"""
+    game_page.evaluate("() => startGame('player')")
+    return game_page
 ```
 
 ---
@@ -350,21 +398,22 @@ pytest tests/ -v --html=report.html --self-contained-html
 
 每次新增功能或修改遊戲邏輯時，依序確認：
 
+- [ ] 選對 fixture：白箱測試用 `playing_page`，黑箱測試用 `game_page`
 - [ ] 若修改了任何公式（碰撞、分數、等級、生成頻率）→ 補充或更新 **Unit Test**
 - [ ] 為新 game function 補充 **Functional Test**（單一行為驗證）
 - [ ] 為新功能與現有系統的互動補充 **Integration Test**
 - [ ] 若發現新的邊界行為 → 補充 **Regression Test** 防止復發
-- [ ] 本機執行 `pytest tests/ -v` 全部通過
+- [ ] 本機執行 `pytest tests/ -v` 全部通過（可看到瀏覽器畫面）
 - [ ] 執行快速版確認無誤：`pytest -m "unit or smoke"`
 
 ---
 
 ## 測試分類判斷原則
 
-| 問題 | 答案 → 分類 |
-|------|------------|
-| 只是驗算一條數學公式嗎？ | 是 → Unit Test |
-| 測試一個 game function 的完整行為嗎？ | 是 → Functional Test |
-| 需要等待 game loop 跑一段時間嗎？ | 是 → Integration Test |
-| 在防止一個已知邊界行為退化嗎？ | 是 → Regression Test |
-| 只觀察 DOM，不碰 JS 內部嗎？ | 是 → Smoke 或 Regression Test |
+| 問題 | 答案 → 分類 | Fixture |
+|------|------------|---------|
+| 只是驗算一條數學公式嗎？ | 是 → Unit Test | `playing_page` |
+| 測試一個 game function 的完整行為嗎？ | 是 → Functional Test | `playing_page` |
+| 需要等待 game loop 跑一段時間嗎？ | 是 → Integration Test | `game_page` |
+| 在防止一個已知邊界行為退化嗎？ | 是 → Regression Test | `game_page` |
+| 只觀察 DOM，不碰 JS 內部嗎？ | 是 → Smoke 或 Regression Test | `game_page` |

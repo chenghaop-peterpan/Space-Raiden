@@ -3,6 +3,11 @@ import threading
 import http.server
 import os
 
+
+@pytest.fixture(scope="session")
+def browser_type_launch_args(browser_type_launch_args):
+    return {**browser_type_launch_args, "headless": False}
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PORT = 8765
 
@@ -22,7 +27,14 @@ def local_server():
 
 @pytest.fixture
 def game_page(page):
-    """開啟遊戲頁面並等待畫布載入"""
+    """黑箱測試用：開啟遊戲頁面，停在 start 畫面（state='start'）"""
     page.goto(f"http://localhost:{PORT}/space_dodge.html")
     page.wait_for_selector("#canvas")
     return page
+
+
+@pytest.fixture
+def playing_page(game_page):
+    """白箱測試用：直接以 JS 啟動遊戲，跳過選單 UI（state='playing'）"""
+    game_page.evaluate("() => startGame('player')")
+    return game_page
