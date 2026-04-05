@@ -42,9 +42,9 @@
 3. 跑測試（確認全過）
    .venv/Scripts/pytest.exe tests/ -v
 
-4. 補 changelog
-   - 新增 changelog/vX.Y.Z.md
-   - 更新 changelog/SUMMARY.md：新版本插入表格最上方
+4. 補 changelog（必做，merge 前不可跳過）
+   - 新增 changelog/vX.Y.Z.md（主題 / 新增 / 修改 / 修復 / 測試）
+   - 更新 changelog/SUMMARY.md：新版本插入表格最上方（新的在上）
 
 5. Commit & Push
    git add <files>
@@ -54,10 +54,12 @@
 6. GitHub Actions 自動跑 CI（push 觸發）
    → 確認 Actions 綠燈
 
-7. Merge to main
+7. Merge to main + 刪 branch（必做，不等提醒）
    git checkout main
    git merge feat/vX.Y.Z --no-ff
    git push origin main
+   git push origin --delete feat/vX.Y.Z
+   git branch -d feat/vX.Y.Z
 
 8. Tag
    git tag vX.Y.Z
