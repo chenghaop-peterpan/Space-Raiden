@@ -151,6 +151,12 @@ let frameCount = 0;
 let invincible = 0;      // 無敵幀數
 let shake = 0;           // 震動幀數
 
+// --- AI 研究追蹤 ---
+let hudVisible      = false;
+let aiDecisionState = 'Idle';  // 'Idle' | 'Tracking' | 'Firing' | 'Evading' | 'Dodging'
+let shotsFired      = 0;
+let shotsHit        = 0;
+
 // --- 星空背景 ---
 const stars = Array.from({length: 120}, () => ({
   x: Math.random() * W,
@@ -199,6 +205,7 @@ document.addEventListener('keydown', e => {
   if (e.code === 'Escape' && state === 'ai_params') {
     hideAiPanel(); state = 'menu';
   }
+  if (e.code === 'KeyH') hudVisible = !hudVisible;
 });
 document.addEventListener('keyup', e => { keys[e.code] = false; });
 
@@ -208,6 +215,7 @@ function startGame(mode = 'player') {
   state = 'playing';
   score = 0; lives = 3; level = 1; frameCount = 0;
   invincible = 0; shake = 0; laserCooldown = 0;
+  shotsFired = 0; shotsHit = 0; aiDecisionState = 'Idle';
   asteroids = []; lasers = []; explosions = []; particles = [];
   player.x = W / 2; player.y = H - 90;
   player.vx = 0; player.vy = 0;
@@ -236,6 +244,7 @@ function fireLaser() {
   if (laserCooldown > 0) return;
   lasers.push({ x: player.x, y: player.y - player.h / 2, vy: -14, w: 3, h: 18 });
   laserCooldown = 12;
+  shotsFired++;
 }
 
 // --- 爆炸 ---
@@ -258,9 +267,35 @@ function explode(x, y, big) {
   if (big) shake = 14;
 }
 
+// --- 狀態輸出 API ---
+function getGameState() {
+  return {
+    player: {
+      x: player.x, y: player.y,
+      vx: player.vx, vy: player.vy,
+      invincible: invincible > 0,
+      invincibleFrames: invincible,
+    },
+    laserCooldown,
+    asteroids: asteroids.map(a => ({ x: a.x, y: a.y, r: a.r, vx: a.vx, vy: a.vy, hp: a.hp })),
+    lasers:    lasers.map(l => ({ x: l.x, y: l.y, vy: l.vy })),
+    score, lives, level, frameCount, state, gameMode,
+  };
+}
+
+// --- 指令控制 API ---
+function executeCommand(cmd = {}) {
+  keys['ArrowLeft']  = !!cmd.left;
+  keys['ArrowRight'] = !!cmd.right;
+  keys['ArrowUp']    = !!cmd.up;
+  keys['ArrowDown']  = !!cmd.down;
+  if (cmd.shoot) fireLaser();
+}
+
 // --- AI 控制 ---
 function aiUpdate() {
-  keys['ArrowLeft'] = keys['ArrowRight'] = keys['ArrowUp'] = keys['ArrowDown'] = false;
+  let left = false, right = false, up = false, down = false, shoot = false;
+
   // 找最危險的隕石
   let threat = null, maxThreat = 0;
   asteroids.forEach(a => {
@@ -268,23 +303,42 @@ function aiUpdate() {
     const danger = a.vy / Math.max(dist, 1);
     if (dist < aiParams.safetyRadius * 2 && danger > maxThreat) { maxThreat = danger; threat = a; }
   });
+
   // 閃躲
+  let evading = false;
   if (threat) {
     const px = threat.x + threat.vx * aiParams.lookaheadFrames;
     const py = threat.y + threat.vy * aiParams.lookaheadFrames;
     if (Math.hypot(player.x - px, player.y - py) < aiParams.safetyRadius) {
-      keys[player.x < px ? 'ArrowLeft' : 'ArrowRight'] = true;
-      if (player.y < py) keys['ArrowDown'] = true;
+      left  = player.x < px;
+      right = player.x > px;
+      if (player.y < py) down = true;
+      evading = true;
     }
   }
+
   // 攻擊
   asteroids.forEach(a => {
     if (a.y < player.y &&
         Math.abs(a.x - player.x) < aiParams.aimTolerance &&
         Math.random() < aiParams.aggressionLevel / 10) {
-      fireLaser();
+      shoot = true;
     }
   });
+
+  // 決策狀態（5 種）
+  if (evading) {
+    const nearDist = Math.hypot(player.x - threat.x, player.y - threat.y);
+    aiDecisionState = nearDist < aiParams.safetyRadius * 0.5 ? 'Dodging' : 'Evading';
+  } else if (shoot) {
+    aiDecisionState = 'Firing';
+  } else if (asteroids.some(a => a.y < player.y)) {
+    aiDecisionState = 'Tracking';
+  } else {
+    aiDecisionState = 'Idle';
+  }
+
+  executeCommand({ left, right, up, down, shoot });
 }
 
 // --- 更新 ---
@@ -337,6 +391,7 @@ function update() {
       const dx = l.x - a.x, dy = (l.y + l.h/2) - a.y;
       if (Math.sqrt(dx*dx + dy*dy) < a.r + 4) {
         a.hp--;
+        shotsHit++;
         if (a.hp <= 0) {
           explode(a.x, a.y, a.r > 28);
           score += a.r > 28 ? 30 : 15;
@@ -462,6 +517,43 @@ function drawShuttle(x, y, blink) {
   ctx.fillStyle = '#556';
   ctx.fill();
 
+  ctx.restore();
+}
+
+// --- Debug HUD ---
+function drawHUD() {
+  if (!hudVisible) return;
+  const x = 8, y = 8, pw = 210;
+  const acc = shotsFired > 0 ? Math.round(shotsHit / shotsFired * 100) : 0;
+  const lines = [
+    ['[ DEBUG HUD ]  (H to toggle)', '#0ff'],
+    [`mode  : ${gameMode}`,                              '#aef'],
+    [`state : ${state}`,                                 '#aef'],
+    [`frame : ${frameCount}`,                            '#aef'],
+    [`shots : ${shotsHit}/${shotsFired} (${acc}%)`,      '#aef'],
+  ];
+  if (gameMode === 'ai') {
+    const hudColor = { Dodging:'#f44', Evading:'#f80', Firing:'#0f8', Tracking:'#ff8', Idle:'#88f' };
+    lines.push(['', '']);
+    lines.push([`AI ► ${aiDecisionState}`, hudColor[aiDecisionState] ?? '#fff']);
+    lines.push([`safetyR   : ${aiParams.safetyRadius}`,    '#ccc']);
+    lines.push([`aggression: ${aiParams.aggressionLevel}`, '#ccc']);
+    lines.push([`aimTol    : ${aiParams.aimTolerance}`,    '#ccc']);
+    lines.push([`lookahead : ${aiParams.lookaheadFrames}fr`,'#ccc']);
+  }
+  const ph = 18 + lines.length * 15;
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.75)';
+  ctx.fillRect(x, y, pw, ph);
+  ctx.strokeStyle = '#0ff4';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, pw, ph);
+  ctx.font = '11px Courier New';
+  ctx.textAlign = 'left';
+  lines.forEach(([text, color], i) => {
+    ctx.fillStyle = color;
+    ctx.fillText(text, x + 8, y + 14 + i * 15);
+  });
   ctx.restore();
 }
 
@@ -618,6 +710,9 @@ function draw() {
 
   // 模式選單
   if (state === 'menu') drawModeMenu();
+
+  // Debug HUD（最上層）
+  drawHUD();
 
   ctx.restore();
 }

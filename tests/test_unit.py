@@ -158,3 +158,61 @@ def test_spawn_interval_formula(playing_page):
     assert result["level6"] == 10
     assert result["level9"] == 10  # clamped at min 10
     _print(f"  [OK] level1=25, level3=19, level6=10, level9=10(clamped)")
+
+
+# ── getGameState() API ────────────────────────────────────────────────────────
+
+def test_getgamestate_complete_schema(playing_page):
+    _print("\n[UNIT TEST] Test: getGameState() returns all required top-level and player keys")
+    result = playing_page.evaluate("() => getGameState()")
+    for key in ["player", "laserCooldown", "asteroids", "lasers",
+                "score", "lives", "level", "frameCount", "state", "gameMode"]:
+        assert key in result, f"missing key: {key}"
+    for key in ["x", "y", "vx", "vy", "invincible", "invincibleFrames"]:
+        assert key in result["player"], f"missing player key: {key}"
+    _print("  [OK] all schema keys present")
+
+
+def test_getgamestate_player_position(playing_page):
+    _print("\n[UNIT TEST] Test: getGameState() exports correct player position")
+    result = playing_page.evaluate("""() => {
+        player.x = 200; player.y = 500;
+        return getGameState().player;
+    }""")
+    assert result["x"] == 200
+    assert result["y"] == 500
+    _print(f"  [OK] player.x={result['x']}, player.y={result['y']}")
+
+
+def test_getgamestate_invincible_flag(playing_page):
+    _print("\n[UNIT TEST] Test: getGameState() exports invincible as bool + frame count")
+    result = playing_page.evaluate("""() => {
+        invincible = 120;
+        return getGameState().player;
+    }""")
+    assert result["invincible"] is True
+    assert result["invincibleFrames"] == 120
+    _print(f"  [OK] invincible={result['invincible']}, frames={result['invincibleFrames']}")
+
+
+def test_getgamestate_laser_cooldown(playing_page):
+    _print("\n[UNIT TEST] Test: getGameState() exports laserCooldown correctly")
+    result = playing_page.evaluate("""() => {
+        laserCooldown = 7;
+        return getGameState().laserCooldown;
+    }""")
+    assert result == 7
+    _print(f"  [OK] laserCooldown={result}")
+
+
+def test_getgamestate_asteroids_exported(playing_page):
+    _print("\n[UNIT TEST] Test: getGameState() exports asteroid list with correct fields")
+    result = playing_page.evaluate("""() => {
+        asteroids = [{ x: 100, y: 200, r: 25, vx: 1, vy: 2, hp: 1 }];
+        return getGameState().asteroids[0];
+    }""")
+    assert result["x"] == 100
+    assert result["y"] == 200
+    assert result["r"] == 25
+    assert result["hp"] == 1
+    _print(f"  [OK] asteroid exported: x={result['x']}, r={result['r']}, hp={result['hp']}")

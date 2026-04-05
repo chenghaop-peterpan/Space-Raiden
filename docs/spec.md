@@ -14,17 +14,20 @@
 ## 遊戲狀態機
 
 ```
-start ──[Space/Enter]──► playing ──[lives=0]──► dead ──[1.2s後]──► gameover
-  ▲                                                                      │
-  └──────────────────────[Space/Enter]────────────────────────────────────┘
+start ──[Space/Enter]──► menu ──[Player]──────────────────► playing ──[lives=0]──► dead ──[1.2s]──► gameover
+                          │                                                                               │
+                          └──[AI]──► ai_params ──[Start AI]──► playing(AI)                               │
+                                         └──[Esc]──► menu ◄────────────────────[Space/Enter]─────────────┘
 ```
 
 | 狀態 | 說明 |
 |------|------|
 | `start` | 開始畫面，顯示操作說明 |
+| `menu` | 模式選單：玩家模式 / AI 模式（↑↓ 切換，Space/Enter 確認） |
+| `ai_params` | AI 參數面板（HTML overlay，滑桿調整 5 項參數） |
 | `playing` | 遊戲進行中，執行完整 update/draw 迴圈 |
 | `dead` | 玩家死亡動畫播放中（1.2 秒） |
-| `gameover` | 顯示最終分數與等級，等待重試 |
+| `gameover` | 顯示最終分數與等級，Space/Enter 返回選單 |
 
 ---
 
@@ -120,6 +123,71 @@ level = 1 + floor(score / 300)
 7. 雷射
 8. 玩家太空梭（無敵時閃爍）
 9. 疊加 UI 畫面（開始 / 遊戲結束）
+
+---
+
+## AI 開發模式（Auto-Pilot Mode）
+
+### 遊戲模式
+
+| `gameMode` | 說明 |
+|------------|------|
+| `'player'` | 玩家以鍵盤控制 |
+| `'ai'` | 規則式 AI 自動操控，每幀呼叫 `aiUpdate()` |
+
+### API
+
+#### `getGameState() → Object`
+
+回傳當前遊戲快照，供 AI 或外部程式讀取：
+
+```javascript
+{
+  player: { x, y, vx, vy, invincible: bool, invincibleFrames: number },
+  laserCooldown: number,
+  asteroids: [{ x, y, r, vx, vy, hp }],
+  lasers:    [{ x, y, vy }],
+  score, lives, level, frameCount, state, gameMode
+}
+```
+
+#### `executeCommand(cmd) → void`
+
+統一的飛船控制介面，鍵盤輸入與 AI 決策皆透過此函數驅動：
+
+```javascript
+executeCommand({ left, right, up, down, shoot })
+// 範例：向左移動同時發射
+executeCommand({ left: true, shoot: true })
+```
+
+### AI 決策狀態（`aiDecisionState`）
+
+| 狀態 | 意義 | HUD 顏色 |
+|------|------|----------|
+| `'Idle'` | 無威脅，無目標 | 藍 `#88f` |
+| `'Tracking'` | 有隕石在上方，等待對準 | 黃 `#ff8` |
+| `'Firing'` | 隕石在瞄準容差內，正在射擊 | 綠 `#0f8` |
+| `'Evading'` | 威脅在安全距離內，側向閃躲 | 橘 `#f80` |
+| `'Dodging'` | 威脅極近（< safetyRadius × 0.5），緊急規避 | 紅 `#f44` |
+
+### Debug HUD
+
+按 `H` 鍵開關 Canvas 疊加儀表板，顯示：
+- 遊戲模式、狀態、幀數
+- 雷射命中率（hits / fired）
+- AI 決策狀態燈號（僅 AI 模式）
+- 目前 AI 參數數值
+
+### AI 參數（`aiParams`）
+
+| 參數 | 預設值 | 說明 |
+|------|--------|------|
+| `reactionDelay` | 250 ms | 反應延遲（目前預留，尚未接入） |
+| `safetyRadius` | 80 px | 觸發閃躲的距離閾值 |
+| `aimTolerance` | 40 px | 瞄準容許誤差 |
+| `aggressionLevel` | 7 | 攻擊積極度（1–10，每幀射擊機率） |
+| `lookaheadFrames` | 20 fr | 預測隕石未來位置的幀數 |
 
 ---
 
