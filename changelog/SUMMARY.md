@@ -4,6 +4,7 @@
 
 | 版本 | 日期 | 主題 |
 |------|------|------|
+| [v1.3.3](v1.3.3.md) | 2026-04-06 | requirements.txt + roadmap.md 備忘錄機制 |
 | [v1.3.2](v1.3.2.md) | 2026-04-05 | CLAUDE.md 規則補強：changelog 必做、merge 後刪 branch |
 | [v1.3.1](v1.3.1.md) | 2026-04-05 | GitHub Actions CI + 開發流程文件 |
 | [v1.3.0](v1.3.0.md) | 2026-04-05 | Benchmark 基礎設施：趨勢圖、歷史表格、CSV 匯出 |
