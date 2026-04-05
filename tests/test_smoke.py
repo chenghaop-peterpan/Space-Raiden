@@ -166,3 +166,28 @@ def test_score_increases_over_time(game_page):
     game_page.wait_for_timeout(2000)
     score = int(game_page.locator("#score").inner_text())
     assert score > 0
+
+
+# ── Benchmark 面板 ──────────────────────────────────────────────────────────────
+
+def test_benchmark_panel_initially_hidden(game_page):
+    assert not game_page.locator("#benchmark-panel").is_visible()
+
+
+def test_b_key_shows_benchmark_panel(game_page):
+    game_page.keyboard.press("b")
+    assert game_page.locator("#benchmark-panel").is_visible()
+
+
+def test_b_key_toggles_benchmark_panel(game_page):
+    game_page.keyboard.press("b")
+    assert game_page.locator("#benchmark-panel").is_visible()
+    game_page.keyboard.press("b")
+    assert not game_page.locator("#benchmark-panel").is_visible()
+
+
+def test_benchmark_close_button_hides_panel(game_page):
+    game_page.keyboard.press("b")
+    assert game_page.locator("#benchmark-panel").is_visible()
+    game_page.locator("#btn-bm-close").click()
+    assert not game_page.locator("#benchmark-panel").is_visible()

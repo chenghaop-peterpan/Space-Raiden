@@ -86,6 +86,79 @@
     background: rgba(0,255,255,0.1);
     box-shadow: 0 0 12px #0ff;
   }
+  #benchmark-panel {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 101;
+    background: rgba(0,0,10,0.95);
+    border: 1px solid #0ff;
+    box-shadow: 0 0 30px #0ff6, 0 0 60px #0ff2;
+    padding: 20px 24px;
+    width: 660px;
+    font-family: 'Courier New', monospace;
+    color: #0ff;
+    flex-direction: column;
+  }
+  #benchmark-panel h2 {
+    text-align: center;
+    font-size: 16px;
+    margin-bottom: 10px;
+    text-shadow: 0 0 10px #0ff;
+  }
+  #bm-summary {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 10px;
+    font-size: 13px;
+    color: #aef;
+  }
+  #bm-table-wrap {
+    max-height: 280px;
+    overflow-y: auto;
+    margin-bottom: 12px;
+  }
+  #bm-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    color: #cef;
+  }
+  #bm-table th {
+    color: #0ff;
+    border-bottom: 1px solid #0ff4;
+    padding: 4px 6px;
+    text-align: center;
+    white-space: nowrap;
+  }
+  #bm-table td {
+    padding: 3px 6px;
+    text-align: center;
+    border-bottom: 1px solid #0ff2;
+  }
+  #bm-table tbody tr:first-child td { color: #ff8; }
+  #bm-buttons {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  #bm-buttons button {
+    flex: 1;
+    padding: 7px 0;
+    background: transparent;
+    border: 1px solid #0ff;
+    color: #0ff;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    cursor: pointer;
+    transition: box-shadow 0.2s, background 0.2s;
+  }
+  #bm-buttons button:hover {
+    background: rgba(0,255,255,0.1);
+    box-shadow: 0 0 12px #0ff;
+  }
 </style>
 </head>
 <body>
@@ -128,7 +201,31 @@
     <button id="btn-start">開始 AI ►</button>
   </div>
 </div>
-<div id="hint">方向鍵 / WASD 移動　　Space 發射雷射　　Enter 選擇模式</div>
+<div id="benchmark-panel">
+  <h2>Benchmark 歷史紀錄</h2>
+  <div id="bm-summary">
+    <span>共 <span id="bm-count">0</span> 場</span>
+    <span>平均分數：<span id="bm-avg">—</span></span>
+    <span>最高分數：<span id="bm-best">—</span></span>
+  </div>
+  <div id="bm-table-wrap">
+    <table id="bm-table">
+      <thead>
+        <tr>
+          <th>#</th><th>分數</th><th>等級</th><th>命中率</th>
+          <th>時長</th><th>Idle</th><th>Track</th><th>Fire</th>
+          <th>Evade</th><th>Dodge</th>
+        </tr>
+      </thead>
+      <tbody id="bm-tbody"></tbody>
+    </table>
+  </div>
+  <div id="bm-buttons">
+    <button id="btn-bm-close">✕ 關閉 (B)</button>
+    <button id="btn-bm-export">↓ 匯出 CSV (E)</button>
+  </div>
+</div>
+<div id="hint">方向鍵 / WASD 移動　　Space 發射雷射　　H：HUD　B：Benchmark　E：匯出 CSV</div>
 
 <script>
 const canvas = document.getElementById('canvas');
@@ -150,6 +247,17 @@ let aiParams = {
 let frameCount = 0;
 let invincible = 0;      // 無敵幀數
 let shake = 0;           // 震動幀數
+
+// --- AI 研究追蹤 ---
+let hudVisible      = false;
+let aiDecisionState = 'Idle';  // 'Idle' | 'Tracking' | 'Firing' | 'Evading' | 'Dodging'
+let shotsFired      = 0;
+let shotsHit        = 0;
+
+// --- Benchmark 資料 ---
+let runHistory       = [];
+let stateFrameCounts = { Idle:0, Tracking:0, Firing:0, Evading:0, Dodging:0 };
+let benchmarkVisible = false;
 
 // --- 星空背景 ---
 const stars = Array.from({length: 120}, () => ({
@@ -199,6 +307,12 @@ document.addEventListener('keydown', e => {
   if (e.code === 'Escape' && state === 'ai_params') {
     hideAiPanel(); state = 'menu';
   }
+  if (e.code === 'KeyH') hudVisible = !hudVisible;
+  if (e.code === 'KeyB') {
+    benchmarkVisible = !benchmarkVisible;
+    document.getElementById('benchmark-panel').style.display = benchmarkVisible ? 'flex' : 'none';
+  }
+  if (e.code === 'KeyE' && runHistory.length > 0) exportCSV();
 });
 document.addEventListener('keyup', e => { keys[e.code] = false; });
 
@@ -208,6 +322,8 @@ function startGame(mode = 'player') {
   state = 'playing';
   score = 0; lives = 3; level = 1; frameCount = 0;
   invincible = 0; shake = 0; laserCooldown = 0;
+  shotsFired = 0; shotsHit = 0; aiDecisionState = 'Idle';
+  stateFrameCounts = { Idle:0, Tracking:0, Firing:0, Evading:0, Dodging:0 };
   asteroids = []; lasers = []; explosions = []; particles = [];
   player.x = W / 2; player.y = H - 90;
   player.vx = 0; player.vy = 0;
@@ -236,6 +352,7 @@ function fireLaser() {
   if (laserCooldown > 0) return;
   lasers.push({ x: player.x, y: player.y - player.h / 2, vy: -14, w: 3, h: 18 });
   laserCooldown = 12;
+  shotsFired++;
 }
 
 // --- 爆炸 ---
@@ -258,9 +375,35 @@ function explode(x, y, big) {
   if (big) shake = 14;
 }
 
+// --- 狀態輸出 API ---
+function getGameState() {
+  return {
+    player: {
+      x: player.x, y: player.y,
+      vx: player.vx, vy: player.vy,
+      invincible: invincible > 0,
+      invincibleFrames: invincible,
+    },
+    laserCooldown,
+    asteroids: asteroids.map(a => ({ x: a.x, y: a.y, r: a.r, vx: a.vx, vy: a.vy, hp: a.hp })),
+    lasers:    lasers.map(l => ({ x: l.x, y: l.y, vy: l.vy })),
+    score, lives, level, frameCount, state, gameMode,
+  };
+}
+
+// --- 指令控制 API ---
+function executeCommand(cmd = {}) {
+  keys['ArrowLeft']  = !!cmd.left;
+  keys['ArrowRight'] = !!cmd.right;
+  keys['ArrowUp']    = !!cmd.up;
+  keys['ArrowDown']  = !!cmd.down;
+  if (cmd.shoot) fireLaser();
+}
+
 // --- AI 控制 ---
 function aiUpdate() {
-  keys['ArrowLeft'] = keys['ArrowRight'] = keys['ArrowUp'] = keys['ArrowDown'] = false;
+  let left = false, right = false, up = false, down = false, shoot = false;
+
   // 找最危險的隕石
   let threat = null, maxThreat = 0;
   asteroids.forEach(a => {
@@ -268,23 +411,43 @@ function aiUpdate() {
     const danger = a.vy / Math.max(dist, 1);
     if (dist < aiParams.safetyRadius * 2 && danger > maxThreat) { maxThreat = danger; threat = a; }
   });
+
   // 閃躲
+  let evading = false;
   if (threat) {
     const px = threat.x + threat.vx * aiParams.lookaheadFrames;
     const py = threat.y + threat.vy * aiParams.lookaheadFrames;
     if (Math.hypot(player.x - px, player.y - py) < aiParams.safetyRadius) {
-      keys[player.x < px ? 'ArrowLeft' : 'ArrowRight'] = true;
-      if (player.y < py) keys['ArrowDown'] = true;
+      left  = player.x < px;
+      right = player.x > px;
+      if (player.y < py) down = true;
+      evading = true;
     }
   }
+
   // 攻擊
   asteroids.forEach(a => {
     if (a.y < player.y &&
         Math.abs(a.x - player.x) < aiParams.aimTolerance &&
         Math.random() < aiParams.aggressionLevel / 10) {
-      fireLaser();
+      shoot = true;
     }
   });
+
+  // 決策狀態（5 種）
+  if (evading) {
+    const nearDist = Math.hypot(player.x - threat.x, player.y - threat.y);
+    aiDecisionState = nearDist < aiParams.safetyRadius * 0.5 ? 'Dodging' : 'Evading';
+  } else if (shoot) {
+    aiDecisionState = 'Firing';
+  } else if (asteroids.some(a => a.y < player.y)) {
+    aiDecisionState = 'Tracking';
+  } else {
+    aiDecisionState = 'Idle';
+  }
+
+  stateFrameCounts[aiDecisionState]++;
+  executeCommand({ left, right, up, down, shoot });
 }
 
 // --- 更新 ---
@@ -337,6 +500,7 @@ function update() {
       const dx = l.x - a.x, dy = (l.y + l.h/2) - a.y;
       if (Math.sqrt(dx*dx + dy*dy) < a.r + 4) {
         a.hp--;
+        shotsHit++;
         if (a.hp <= 0) {
           explode(a.x, a.y, a.r > 28);
           score += a.r > 28 ? 30 : 15;
@@ -359,7 +523,7 @@ function update() {
         invincible = 120;
         shake = 20;
         explode(a.x, a.y, false);
-        if (lives <= 0) { state = 'dead'; explode(player.x, player.y, true); setTimeout(()=>{ state='gameover'; }, 1200); }
+        if (lives <= 0) { state = 'dead'; explode(player.x, player.y, true); setTimeout(()=>{ state='gameover'; recordRun(); }, 1200); }
         return false;
       }
     }
@@ -462,6 +626,155 @@ function drawShuttle(x, y, blink) {
   ctx.fillStyle = '#556';
   ctx.fill();
 
+  ctx.restore();
+}
+
+// --- Benchmark ---
+function recordRun() {
+  const totalSF = Object.values(stateFrameCounts).reduce((a, b) => a + b, 0) || 1;
+  runHistory.push({
+    run:      runHistory.length + 1,
+    score,
+    level,
+    accuracy: shotsFired > 0 ? Math.round(shotsHit / shotsFired * 100) : 0,
+    frames:   frameCount,
+    mode:     gameMode,
+    states:   { ...stateFrameCounts },
+  });
+  renderBenchmarkPanel();
+}
+
+function renderBenchmarkPanel() {
+  const tbody = document.getElementById('bm-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = runHistory.slice().reverse().map(r => {
+    const totalSF = Object.values(r.states).reduce((a, b) => a + b, 0) || 1;
+    const pct = s => Math.round(s / totalSF * 100) + '%';
+    return `<tr>
+      <td>${r.run}</td>
+      <td>${r.score}</td>
+      <td>${r.level}</td>
+      <td>${r.accuracy}%</td>
+      <td>${(r.frames / 60).toFixed(1)}s</td>
+      <td>${pct(r.states.Idle)}</td>
+      <td>${pct(r.states.Tracking)}</td>
+      <td>${pct(r.states.Firing)}</td>
+      <td>${pct(r.states.Evading)}</td>
+      <td>${pct(r.states.Dodging)}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('bm-count').textContent = runHistory.length;
+  if (runHistory.length > 0) {
+    const avg  = Math.round(runHistory.reduce((a, r) => a + r.score, 0) / runHistory.length);
+    const best = Math.max(...runHistory.map(r => r.score));
+    document.getElementById('bm-avg').textContent  = avg;
+    document.getElementById('bm-best').textContent = best;
+  }
+}
+
+function exportCSV() {
+  if (runHistory.length === 0) return;
+  const headers = 'Run,Score,Level,Accuracy(%),Duration(s),Idle(%),Tracking(%),Firing(%),Evading(%),Dodging(%)';
+  const rows = runHistory.map(r => {
+    const totalSF = Object.values(r.states).reduce((a, b) => a + b, 0) || 1;
+    const pct = s => Math.round(s / totalSF * 100);
+    return [r.run, r.score, r.level, r.accuracy, (r.frames / 60).toFixed(1),
+      pct(r.states.Idle), pct(r.states.Tracking), pct(r.states.Firing),
+      pct(r.states.Evading), pct(r.states.Dodging)].join(',');
+  });
+  const csv  = [headers, ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = 'benchmark.csv';
+  a.click();
+}
+
+function drawBenchmarkChart() {
+  if (runHistory.length === 0) return;
+  const runs     = runHistory.slice(-10);
+  const maxScore = Math.max(...runs.map(r => r.score), 1);
+  const bx0  = 30, by0 = 415, bw = 420, bh = 185;
+  const chartH = 90;
+  const chartY = by0 + bh - 35;
+  const barW   = Math.max(8, Math.floor((bw - 20) / runs.length) - 4);
+  const totalW = runs.length * (barW + 4);
+  const chartX = bx0 + Math.round((bw - totalW) / 2);
+
+  ctx.fillStyle = 'rgba(0,0,20,0.88)';
+  ctx.fillRect(bx0, by0, bw, bh);
+  ctx.strokeStyle = '#0ff3';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(bx0, by0, bw, bh);
+
+  ctx.font = '11px Courier New';
+  ctx.fillStyle = '#0ff';
+  ctx.textAlign = 'center';
+  ctx.fillText(`最近 ${runs.length} 場分數趨勢  [B 查看詳細 / E 匯出]`, bx0 + bw / 2, by0 + 16);
+
+  // baseline
+  ctx.strokeStyle = '#0ff4';
+  ctx.beginPath();
+  ctx.moveTo(chartX - 4, chartY);
+  ctx.lineTo(chartX + totalW + 4, chartY);
+  ctx.stroke();
+
+  runs.forEach((r, i) => {
+    const bHeight = Math.max(2, Math.round((r.score / maxScore) * chartH));
+    const barX    = chartX + i * (barW + 4);
+    const barY    = chartY - bHeight;
+    const isLast  = i === runs.length - 1;
+    ctx.fillStyle = isLast ? '#0ff' : '#0a8';
+    ctx.fillRect(barX, barY, barW, bHeight);
+    ctx.font      = '8px Courier New';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = isLast ? '#0ff' : '#aef';
+    ctx.fillText(r.score, barX + barW / 2, barY - 2);
+    ctx.fillStyle = '#557';
+    ctx.fillText(`#${r.run}`, barX + barW / 2, chartY + 14);
+  });
+
+  ctx.font      = '9px Courier New';
+  ctx.fillStyle = '#0ff8';
+  ctx.textAlign = 'right';
+  ctx.fillText(maxScore, chartX - 8, by0 + 30 + 4);
+  ctx.fillText('0', chartX - 8, chartY + 4);
+}
+
+// --- Debug HUD ---
+function drawHUD() {
+  if (!hudVisible) return;
+  const x = 8, y = 8, pw = 210;
+  const acc = shotsFired > 0 ? Math.round(shotsHit / shotsFired * 100) : 0;
+  const lines = [
+    ['[ DEBUG HUD ]  (H to toggle)', '#0ff'],
+    [`mode  : ${gameMode}`,                              '#aef'],
+    [`state : ${state}`,                                 '#aef'],
+    [`frame : ${frameCount}`,                            '#aef'],
+    [`shots : ${shotsHit}/${shotsFired} (${acc}%)`,      '#aef'],
+  ];
+  if (gameMode === 'ai') {
+    const hudColor = { Dodging:'#f44', Evading:'#f80', Firing:'#0f8', Tracking:'#ff8', Idle:'#88f' };
+    lines.push(['', '']);
+    lines.push([`AI ► ${aiDecisionState}`, hudColor[aiDecisionState] ?? '#fff']);
+    lines.push([`safetyR   : ${aiParams.safetyRadius}`,    '#ccc']);
+    lines.push([`aggression: ${aiParams.aggressionLevel}`, '#ccc']);
+    lines.push([`aimTol    : ${aiParams.aimTolerance}`,    '#ccc']);
+    lines.push([`lookahead : ${aiParams.lookaheadFrames}fr`,'#ccc']);
+  }
+  const ph = 18 + lines.length * 15;
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.75)';
+  ctx.fillRect(x, y, pw, ph);
+  ctx.strokeStyle = '#0ff4';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, pw, ph);
+  ctx.font = '11px Courier New';
+  ctx.textAlign = 'left';
+  lines.forEach(([text, color], i) => {
+    ctx.fillStyle = color;
+    ctx.fillText(text, x + 8, y + 14 + i * 15);
+  });
   ctx.restore();
 }
 
@@ -614,10 +927,14 @@ function draw() {
     ctx.globalAlpha = pulse;
     ctx.fillText('按 Space / Enter 返回選單', W/2, H/2 + 75);
     ctx.globalAlpha = 1;
+    drawBenchmarkChart();
   }
 
   // 模式選單
   if (state === 'menu') drawModeMenu();
+
+  // Debug HUD（最上層）
+  drawHUD();
 
   ctx.restore();
 }
@@ -664,6 +981,11 @@ document.getElementById('btn-back').addEventListener('click', () => {
 document.getElementById('btn-start').addEventListener('click', () => {
   hideAiPanel(); startGame('ai');
 });
+document.getElementById('btn-bm-close').addEventListener('click', () => {
+  benchmarkVisible = false;
+  document.getElementById('benchmark-panel').style.display = 'none';
+});
+document.getElementById('btn-bm-export').addEventListener('click', exportCSV);
 </script>
 </body>
 </html>

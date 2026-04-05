@@ -252,3 +252,80 @@ def test_large_asteroid_requires_two_hits(playing_page):
     assert result["destroyed"] is True
     assert result["scoreGained"] >= 30
     _print(f"  [OK] hp after 1st hit={result['hpAfterOne']}, destroyed={result['destroyed']}, score gained={result['scoreGained']}")
+
+
+# ── executeCommand() API ──────────────────────────────────────────────────────
+
+def test_execute_command_left_moves_player(playing_page):
+    _print("\n[FUNCTIONAL TEST] Test: executeCommand({left}) -> player.x decreases")
+    before = playing_page.evaluate("() => player.x")
+    playing_page.evaluate("() => { executeCommand({ left: true }); update(); }")
+    after = playing_page.evaluate("() => player.x")
+    assert after < before
+    _print(f"  [OK] x: {before:.1f} -> {after:.1f}")
+
+
+def test_execute_command_right_moves_player(playing_page):
+    _print("\n[FUNCTIONAL TEST] Test: executeCommand({right}) -> player.x increases")
+    before = playing_page.evaluate("() => player.x")
+    playing_page.evaluate("() => { executeCommand({ right: true }); update(); }")
+    after = playing_page.evaluate("() => player.x")
+    assert after > before
+    _print(f"  [OK] x: {before:.1f} -> {after:.1f}")
+
+
+def test_execute_command_up_moves_player(playing_page):
+    _print("\n[FUNCTIONAL TEST] Test: executeCommand({up}) -> player.y decreases")
+    before = playing_page.evaluate("() => player.y")
+    playing_page.evaluate("() => { executeCommand({ up: true }); update(); }")
+    after = playing_page.evaluate("() => player.y")
+    assert after < before
+    _print(f"  [OK] y: {before:.1f} -> {after:.1f}")
+
+
+def test_execute_command_down_moves_player(playing_page):
+    _print("\n[FUNCTIONAL TEST] Test: executeCommand({down}) -> player.y increases")
+    before = playing_page.evaluate("() => player.y")
+    playing_page.evaluate("() => { executeCommand({ down: true }); update(); }")
+    after = playing_page.evaluate("() => player.y")
+    assert after > before
+    _print(f"  [OK] y: {before:.1f} -> {after:.1f}")
+
+
+def test_execute_command_shoot_fires_laser(playing_page):
+    _print("\n[FUNCTIONAL TEST] Test: executeCommand({shoot}) -> laser added")
+    result = playing_page.evaluate("""() => {
+        laserCooldown = 0; lasers = [];
+        executeCommand({ shoot: true });
+        return lasers.length;
+    }""")
+    assert result == 1
+    _print(f"  [OK] lasers.length={result}")
+
+
+def test_execute_command_idle_no_movement(playing_page):
+    _print("\n[FUNCTIONAL TEST] Test: executeCommand({}) -> player stays in place")
+    result = playing_page.evaluate("""() => {
+        player.x = 240; player.y = 400;
+        player.vx = 0;  player.vy = 0;
+        executeCommand({});
+        update();
+        return { x: Math.round(player.x), y: Math.round(player.y) };
+    }""")
+    assert result["x"] == 240
+    assert result["y"] == 400
+    _print(f"  [OK] position unchanged: ({result['x']}, {result['y']})")
+
+
+def test_execute_command_combined_move_and_shoot(playing_page):
+    _print("\n[FUNCTIONAL TEST] Test: executeCommand({left, shoot}) -> moves AND fires simultaneously")
+    result = playing_page.evaluate("""() => {
+        laserCooldown = 0; lasers = [];
+        const xBefore = player.x;
+        executeCommand({ left: true, shoot: true });
+        update();
+        return { moved: player.x < xBefore, fired: lasers.length >= 1 };
+    }""")
+    assert result["moved"] is True
+    assert result["fired"] is True
+    _print(f"  [OK] moved={result['moved']}, fired={result['fired']}")

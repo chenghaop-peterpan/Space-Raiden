@@ -158,3 +158,127 @@ def test_spawn_interval_formula(playing_page):
     assert result["level6"] == 10
     assert result["level9"] == 10  # clamped at min 10
     _print(f"  [OK] level1=25, level3=19, level6=10, level9=10(clamped)")
+
+
+# ── getGameState() API ────────────────────────────────────────────────────────
+
+def test_getgamestate_complete_schema(playing_page):
+    _print("\n[UNIT TEST] Test: getGameState() returns all required top-level and player keys")
+    result = playing_page.evaluate("() => getGameState()")
+    for key in ["player", "laserCooldown", "asteroids", "lasers",
+                "score", "lives", "level", "frameCount", "state", "gameMode"]:
+        assert key in result, f"missing key: {key}"
+    for key in ["x", "y", "vx", "vy", "invincible", "invincibleFrames"]:
+        assert key in result["player"], f"missing player key: {key}"
+    _print("  [OK] all schema keys present")
+
+
+def test_getgamestate_player_position(playing_page):
+    _print("\n[UNIT TEST] Test: getGameState() exports correct player position")
+    result = playing_page.evaluate("""() => {
+        player.x = 200; player.y = 500;
+        return getGameState().player;
+    }""")
+    assert result["x"] == 200
+    assert result["y"] == 500
+    _print(f"  [OK] player.x={result['x']}, player.y={result['y']}")
+
+
+def test_getgamestate_invincible_flag(playing_page):
+    _print("\n[UNIT TEST] Test: getGameState() exports invincible as bool + frame count")
+    result = playing_page.evaluate("""() => {
+        invincible = 120;
+        return getGameState().player;
+    }""")
+    assert result["invincible"] is True
+    assert result["invincibleFrames"] == 120
+    _print(f"  [OK] invincible={result['invincible']}, frames={result['invincibleFrames']}")
+
+
+def test_getgamestate_laser_cooldown(playing_page):
+    _print("\n[UNIT TEST] Test: getGameState() exports laserCooldown correctly")
+    result = playing_page.evaluate("""() => {
+        laserCooldown = 7;
+        return getGameState().laserCooldown;
+    }""")
+    assert result == 7
+    _print(f"  [OK] laserCooldown={result}")
+
+
+def test_getgamestate_asteroids_exported(playing_page):
+    _print("\n[UNIT TEST] Test: getGameState() exports asteroid list with correct fields")
+    result = playing_page.evaluate("""() => {
+        asteroids = [{ x: 100, y: 200, r: 25, vx: 1, vy: 2, hp: 1 }];
+        return getGameState().asteroids[0];
+    }""")
+    assert result["x"] == 100
+    assert result["y"] == 200
+    assert result["r"] == 25
+    assert result["hp"] == 1
+    _print(f"  [OK] asteroid exported: x={result['x']}, r={result['r']}, hp={result['hp']}")
+
+
+# ── recordRun() / Benchmark ────────────────────────────────────────────────────
+
+def test_record_run_appends_to_history(playing_page):
+    _print("\n[UNIT TEST] Test: recordRun() appends one entry to runHistory")
+    result = playing_page.evaluate("""() => {
+        runHistory = [];
+        score = 250; level = 2; shotsFired = 10; shotsHit = 7;
+        frameCount = 600;
+        recordRun();
+        return runHistory.length;
+    }""")
+    assert result == 1
+    _print(f"  [OK] runHistory.length={result}")
+
+
+def test_record_run_captures_score_and_level(playing_page):
+    _print("\n[UNIT TEST] Test: recordRun() captures correct score and level")
+    result = playing_page.evaluate("""() => {
+        runHistory = [];
+        score = 500; level = 3; shotsFired = 20; shotsHit = 12; frameCount = 1200;
+        recordRun();
+        return { score: runHistory[0].score, level: runHistory[0].level };
+    }""")
+    assert result["score"] == 500
+    assert result["level"] == 3
+    _print(f"  [OK] score={result['score']}, level={result['level']}")
+
+
+def test_record_run_calculates_accuracy(playing_page):
+    _print("\n[UNIT TEST] Test: recordRun() calculates accuracy = hits/fired*100")
+    result = playing_page.evaluate("""() => {
+        runHistory = [];
+        score = 100; level = 1; shotsFired = 10; shotsHit = 8; frameCount = 300;
+        recordRun();
+        return runHistory[0].accuracy;
+    }""")
+    assert result == 80
+    _print(f"  [OK] accuracy={result}% (8/10 hits)")
+
+
+def test_record_run_zero_shots_accuracy(playing_page):
+    _print("\n[UNIT TEST] Test: recordRun() accuracy is 0 when no shots fired")
+    result = playing_page.evaluate("""() => {
+        runHistory = [];
+        score = 50; level = 1; shotsFired = 0; shotsHit = 0; frameCount = 300;
+        recordRun();
+        return runHistory[0].accuracy;
+    }""")
+    assert result == 0
+    _print(f"  [OK] accuracy={result}% (no shots fired)")
+
+
+def test_record_run_increments_run_number(playing_page):
+    _print("\n[UNIT TEST] Test: recordRun() auto-increments run number")
+    result = playing_page.evaluate("""() => {
+        runHistory = [];
+        score = 100; level = 1; shotsFired = 5; shotsHit = 3; frameCount = 300;
+        recordRun();
+        score = 200; recordRun();
+        return { first: runHistory[0].run, second: runHistory[1].run };
+    }""")
+    assert result["first"] == 1
+    assert result["second"] == 2
+    _print(f"  [OK] run numbers: {result['first']}, {result['second']}")
