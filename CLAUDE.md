@@ -7,6 +7,7 @@
 ```
 
 不是 `pytest`，不是 `python -m pytest`。
+本機：headed（有瀏覽器視窗）。CI（GitHub Actions）：headless（由 `CI` 環境變數自動切換）。
 
 ---
 
@@ -26,14 +27,49 @@
 
 ---
 
-## 版本管理（每次發版必做）
+## 每次 Iteration 開發流程
 
-1. 新增 `changelog/vX.Y.Z.md`（主題 / 新增 / 修改 / 修復 / 測試）
-2. 更新 `changelog/SUMMARY.md`：新版本插入表格**最上方**（新的在上，舊的在下）
-3. `git tag vX.Y.Z && git push origin vX.Y.Z`
+```
+1. 開 branch
+   git checkout main && git pull
+   git checkout -b feat/vX.Y.Z
+
+2. 實作
+   - 只改 space_dodge.html（遊戲邏輯）
+   - 新增 / 修改 tests/
+   - 更新 docs/spec.md（如有新 API 或架構異動）
+
+3. 跑測試（確認全過）
+   .venv/Scripts/pytest.exe tests/ -v
+
+4. 補 changelog
+   - 新增 changelog/vX.Y.Z.md
+   - 更新 changelog/SUMMARY.md：新版本插入表格最上方
+
+5. Commit & Push
+   git add <files>
+   git commit -m "feat(vX.Y.Z): ..."
+   git push origin feat/vX.Y.Z
+
+6. GitHub Actions 自動跑 CI（push 觸發）
+   → 確認 Actions 綠燈
+
+7. Merge to main
+   git checkout main
+   git merge feat/vX.Y.Z --no-ff
+   git push origin main
+
+8. Tag
+   git tag vX.Y.Z
+   git push origin vX.Y.Z
+```
 
 ---
 
-## 瀏覽器設定
+## 版本號規則
 
-`headless=False`（在 `tests/conftest.py` 的 `browser_type_launch_args` fixture 設定）
+| 類型 | 版號 |
+|------|------|
+| 破壞性變更 / 重大功能 | Major +1 |
+| 新功能（向下相容） | Minor +1 |
+| Bug 修復 / 小調整 | Patch +1 |
