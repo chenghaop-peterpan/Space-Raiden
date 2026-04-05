@@ -121,7 +121,7 @@ def test_score_small_asteroid(game_page):
     game_page.keyboard.press("Space")
     game_page.wait_for_timeout(200)
     result = game_page.evaluate("""() => {
-        score = 0;
+        score = 0; frameCount = 1;  // prevent time-bonus (+1) from firing in update()
         asteroids = [{ x: 240, y: 200, r: 28, hp: 1, vx: 0, vy: 0 }];
         lasers = [{ x: 240, y: 191, w: 3, h: 18, vy: -14 }];
         update();
@@ -136,7 +136,7 @@ def test_score_large_asteroid(game_page):
     game_page.keyboard.press("Space")
     game_page.wait_for_timeout(200)
     result = game_page.evaluate("""() => {
-        score = 0;
+        score = 0; frameCount = 1;  // prevent time-bonus (+1) from firing in update()
         asteroids = [{ x: 240, y: 200, r: 29, hp: 1, vx: 0, vy: 0 }];
         lasers = [{ x: 240, y: 191, w: 3, h: 18, vy: -14 }];
         update();

@@ -82,12 +82,11 @@ def test_dead_transitions_to_gameover(game_page):
 
 
 def test_restart_from_gameover(game_page):
-    _print("\n[REGRESSION TEST] Test: Space in 'gameover' state must fully reset the game")
-    _print("  -> startGame() must reset score=0, lives=3, state='playing'")
-    game_page.keyboard.press("Space")
-    game_page.wait_for_timeout(200)
-    game_page.evaluate("() => { state = 'gameover'; }")
-    game_page.keyboard.press("Space")
+    _print("\n[REGRESSION TEST] Test: Space in 'gameover' state returns to menu, then starts game")
+    _print("  -> gameover + Space -> menu, menu + Space -> startGame(player) -> playing")
+    game_page.evaluate("() => { state = 'gameover'; score = 999; lives = 1; }")
+    game_page.keyboard.press("Space")   # gameover -> menu
+    game_page.keyboard.press("Space")   # menu -> startGame (player mode, index=0)
     result = game_page.evaluate("() => ({ state, score, lives })")
     assert result["state"] == "playing"
     assert result["score"] == 0

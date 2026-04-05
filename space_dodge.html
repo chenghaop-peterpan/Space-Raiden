@@ -34,6 +34,58 @@
     color: #555;
     font-size: 13px;
   }
+  #ai-panel {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 100;
+    background: rgba(0,0,10,0.92);
+    border: 1px solid #0ff;
+    box-shadow: 0 0 30px #0ff6, 0 0 60px #0ff2;
+    padding: 24px 32px;
+    min-width: 320px;
+    font-family: 'Courier New', monospace;
+    color: #0ff;
+    flex-direction: column;
+  }
+  #ai-panel h2 {
+    text-align: center;
+    font-size: 18px;
+    margin-bottom: 18px;
+    text-shadow: 0 0 10px #0ff;
+  }
+  .param-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+    gap: 10px;
+  }
+  .param-label { width: 72px; font-size: 13px; color: #aef; }
+  .param-row input[type=range] { flex: 1; accent-color: #0ff; cursor: pointer; }
+  .param-val { width: 56px; text-align: right; font-size: 13px; color: #fff; }
+  #ai-buttons {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 18px;
+    gap: 12px;
+  }
+  #ai-buttons button {
+    flex: 1;
+    padding: 8px 0;
+    background: transparent;
+    border: 1px solid #0ff;
+    color: #0ff;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    cursor: pointer;
+    transition: box-shadow 0.2s, background 0.2s;
+  }
+  #ai-buttons button:hover {
+    background: rgba(0,255,255,0.1);
+    box-shadow: 0 0 12px #0ff;
+  }
 </style>
 </head>
 <body>
@@ -44,7 +96,39 @@
   <span>等級：<span id="level">1</span></span>
 </div>
 <canvas id="canvas" width="480" height="640"></canvas>
-<div id="hint">方向鍵 / WASD 移動　　Space 發射雷射</div>
+<div id="ai-panel">
+  <h2>AI 參數設定</h2>
+  <div class="param-row">
+    <span class="param-label">反應延遲</span>
+    <input type="range" id="p-reaction" min="0" max="500" step="50" value="250">
+    <span class="param-val" id="v-reaction">250 ms</span>
+  </div>
+  <div class="param-row">
+    <span class="param-label">安全距離</span>
+    <input type="range" id="p-safety" min="40" max="150" step="10" value="80">
+    <span class="param-val" id="v-safety">80 px</span>
+  </div>
+  <div class="param-row">
+    <span class="param-label">瞄準容差</span>
+    <input type="range" id="p-aim" min="0" max="80" step="10" value="40">
+    <span class="param-val" id="v-aim">40 px</span>
+  </div>
+  <div class="param-row">
+    <span class="param-label">攻擊性</span>
+    <input type="range" id="p-aggr" min="1" max="10" step="1" value="7">
+    <span class="param-val" id="v-aggr">7</span>
+  </div>
+  <div class="param-row">
+    <span class="param-label">預測幀數</span>
+    <input type="range" id="p-look" min="10" max="60" step="5" value="20">
+    <span class="param-val" id="v-look">20 fr</span>
+  </div>
+  <div id="ai-buttons">
+    <button id="btn-back">◄ 返回</button>
+    <button id="btn-start">開始 AI ►</button>
+  </div>
+</div>
+<div id="hint">方向鍵 / WASD 移動　　Space 發射雷射　　Enter 選擇模式</div>
 
 <script>
 const canvas = document.getElementById('canvas');
@@ -52,8 +136,17 @@ const ctx = canvas.getContext('2d');
 const W = canvas.width, H = canvas.height;
 
 // --- 狀態 ---
-let state = 'start'; // start | playing | dead | gameover
+let state = 'start'; // start | menu | ai_params | playing | dead | gameover
 let score = 0, lives = 3, level = 1;
+let gameMode  = 'player';   // 'player' | 'ai'
+let menuIndex = 0;          // 0=玩家模式, 1=AI模式
+let aiParams = {
+  reactionDelay:   250,
+  safetyRadius:     80,
+  aimTolerance:     40,
+  aggressionLevel:   7,
+  lookaheadFrames:  20,
+};
 let frameCount = 0;
 let invincible = 0;      // 無敵幀數
 let shake = 0;           // 震動幀數
@@ -84,19 +177,34 @@ let particles = [];
 
 // --- 鍵盤 ---
 const keys = {};
+function showAiPanel()  { document.getElementById('ai-panel').style.display = 'flex'; state = 'ai_params'; }
+function hideAiPanel()  { document.getElementById('ai-panel').style.display = 'none'; }
+function confirmMenu()  { if (menuIndex === 0) startGame('player'); else showAiPanel(); }
 document.addEventListener('keydown', e => {
   keys[e.code] = true;
   if (e.code === 'Space') {
     e.preventDefault();
-    if (state === 'playing') fireLaser();
-    if (state === 'start' || state === 'gameover') startGame();
+    if (state === 'playing')                      fireLaser();
+    else if (state === 'start' || state === 'gameover') state = 'menu';
+    else if (state === 'menu')                    confirmMenu();
   }
-  if ((e.code === 'Enter') && (state === 'start' || state === 'gameover')) startGame();
+  if (e.code === 'Enter') {
+    if      (state === 'start' || state === 'gameover') state = 'menu';
+    else if (state === 'menu')                          confirmMenu();
+  }
+  if ((e.code === 'ArrowUp' || e.code === 'ArrowDown') && state === 'menu') {
+    menuIndex = menuIndex === 0 ? 1 : 0;
+    e.preventDefault();
+  }
+  if (e.code === 'Escape' && state === 'ai_params') {
+    hideAiPanel(); state = 'menu';
+  }
 });
 document.addEventListener('keyup', e => { keys[e.code] = false; });
 
 // --- 初始化 ---
-function startGame() {
+function startGame(mode = 'player') {
+  gameMode = mode;
   state = 'playing';
   score = 0; lives = 3; level = 1; frameCount = 0;
   invincible = 0; shake = 0; laserCooldown = 0;
@@ -150,6 +258,35 @@ function explode(x, y, big) {
   if (big) shake = 14;
 }
 
+// --- AI 控制 ---
+function aiUpdate() {
+  keys['ArrowLeft'] = keys['ArrowRight'] = keys['ArrowUp'] = keys['ArrowDown'] = false;
+  // 找最危險的隕石
+  let threat = null, maxThreat = 0;
+  asteroids.forEach(a => {
+    const dist = Math.hypot(player.x - a.x, player.y - a.y);
+    const danger = a.vy / Math.max(dist, 1);
+    if (dist < aiParams.safetyRadius * 2 && danger > maxThreat) { maxThreat = danger; threat = a; }
+  });
+  // 閃躲
+  if (threat) {
+    const px = threat.x + threat.vx * aiParams.lookaheadFrames;
+    const py = threat.y + threat.vy * aiParams.lookaheadFrames;
+    if (Math.hypot(player.x - px, player.y - py) < aiParams.safetyRadius) {
+      keys[player.x < px ? 'ArrowLeft' : 'ArrowRight'] = true;
+      if (player.y < py) keys['ArrowDown'] = true;
+    }
+  }
+  // 攻擊
+  asteroids.forEach(a => {
+    if (a.y < player.y &&
+        Math.abs(a.x - player.x) < aiParams.aimTolerance &&
+        Math.random() < aiParams.aggressionLevel / 10) {
+      fireLaser();
+    }
+  });
+}
+
 // --- 更新 ---
 function update() {
   frameCount++;
@@ -162,6 +299,9 @@ function update() {
 
   // 星空
   stars.forEach(s => { s.y += s.speed; if (s.y > H) s.y = 0; });
+
+  // AI 操控（取代鍵盤輸入）
+  if (gameMode === 'ai') aiUpdate();
 
   // 玩家移動
   const sp = player.speed;
@@ -325,6 +465,35 @@ function drawShuttle(x, y, blink) {
   ctx.restore();
 }
 
+// --- 模式選單 ---
+function drawModeMenu() {
+  ctx.fillStyle = 'rgba(0,0,16,0.78)';
+  ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 26px Courier New';
+  ctx.fillStyle = '#0ff';
+  ctx.shadowColor = '#0ff';
+  ctx.shadowBlur = 18;
+  ctx.fillText('選擇遊玩模式', W/2, H/2 - 90);
+  ctx.shadowBlur = 0;
+  const options = ['玩家模式', 'AI 模式'];
+  options.forEach((opt, i) => {
+    const cy = H/2 - 20 + i * 72;
+    const sel = menuIndex === i;
+    ctx.strokeStyle = sel ? '#0ff' : '#224';
+    ctx.lineWidth = sel ? 2 : 1;
+    if (sel) { ctx.shadowColor = '#0ff'; ctx.shadowBlur = 14; }
+    ctx.strokeRect(W/2 - 110, cy - 26, 220, 48);
+    ctx.shadowBlur = 0;
+    ctx.font = (sel ? 'bold ' : '') + '18px Courier New';
+    ctx.fillStyle = sel ? '#0ff' : '#446';
+    ctx.fillText(opt, W/2, cy + 6);
+  });
+  ctx.font = '13px Courier New';
+  ctx.fillStyle = '#445';
+  ctx.fillText('↑↓ 切換　　Space / Enter 確認', W/2, H/2 + 120);
+}
+
 // --- 繪製 ---
 function draw() {
   // 震動效果
@@ -443,9 +612,12 @@ function draw() {
     ctx.fillStyle = '#aef';
     const pulse = 0.5 + Math.sin(frameCount * 0.06) * 0.5;
     ctx.globalAlpha = pulse;
-    ctx.fillText('按 Space / Enter 再試一次', W/2, H/2 + 75);
+    ctx.fillText('按 Space / Enter 返回選單', W/2, H/2 + 75);
     ctx.globalAlpha = 1;
   }
+
+  // 模式選單
+  if (state === 'menu') drawModeMenu();
 
   ctx.restore();
 }
@@ -453,7 +625,7 @@ function draw() {
 // --- 主迴圈 ---
 function loop() {
   if (state === 'playing' || state === 'dead') update();
-  else if (state === 'start' || state === 'gameover') {
+  else if (state === 'start' || state === 'gameover' || state === 'menu' || state === 'ai_params') {
     frameCount++;
     stars.forEach(s => { s.y += s.speed; if (s.y > H) s.y = 0; });
     particles = particles.filter(p => { p.x+=p.vx; p.y+=p.vy; p.vy+=0.1; p.life-=p.decay; return p.life>0; });
@@ -464,6 +636,34 @@ function loop() {
 }
 
 loop();
+
+// --- AI 面板事件 ---
+document.getElementById('p-reaction').addEventListener('input', e => {
+  aiParams.reactionDelay = +e.target.value;
+  document.getElementById('v-reaction').textContent = e.target.value + ' ms';
+});
+document.getElementById('p-safety').addEventListener('input', e => {
+  aiParams.safetyRadius = +e.target.value;
+  document.getElementById('v-safety').textContent = e.target.value + ' px';
+});
+document.getElementById('p-aim').addEventListener('input', e => {
+  aiParams.aimTolerance = +e.target.value;
+  document.getElementById('v-aim').textContent = e.target.value + ' px';
+});
+document.getElementById('p-aggr').addEventListener('input', e => {
+  aiParams.aggressionLevel = +e.target.value;
+  document.getElementById('v-aggr').textContent = e.target.value;
+});
+document.getElementById('p-look').addEventListener('input', e => {
+  aiParams.lookaheadFrames = +e.target.value;
+  document.getElementById('v-look').textContent = e.target.value + ' fr';
+});
+document.getElementById('btn-back').addEventListener('click', () => {
+  hideAiPanel(); state = 'menu';
+});
+document.getElementById('btn-start').addEventListener('click', () => {
+  hideAiPanel(); startGame('ai');
+});
 </script>
 </body>
 </html>

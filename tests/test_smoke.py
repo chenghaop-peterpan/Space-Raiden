@@ -35,19 +35,22 @@ def test_initial_level_is_one(game_page):
 
 
 def test_press_space_starts_game(game_page):
-    game_page.keyboard.press("Space")
+    game_page.keyboard.press("Space")   # start -> menu
+    game_page.keyboard.press("Space")   # menu -> playing (player mode, index=0)
     state = game_page.evaluate("() => state")
     assert state == "playing"
 
 
 def test_press_enter_starts_game(game_page):
-    game_page.keyboard.press("Enter")
+    game_page.keyboard.press("Enter")   # start -> menu
+    game_page.keyboard.press("Enter")   # menu -> playing (player mode, index=0)
     state = game_page.evaluate("() => state")
     assert state == "playing"
 
 
 def test_score_increases_over_time(game_page):
-    game_page.keyboard.press("Space")
+    game_page.keyboard.press("Space")   # start -> menu
+    game_page.keyboard.press("Space")   # menu -> playing
     game_page.wait_for_timeout(2000)
     score = int(game_page.locator("#score").inner_text())
     assert score > 0

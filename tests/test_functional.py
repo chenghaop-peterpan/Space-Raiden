@@ -160,7 +160,8 @@ def test_level_formula(game_page):
 def test_move_left(game_page):
     _print("\n[FUNCTIONAL TEST] Test: Hold ArrowLeft -> player.x should decrease")
     _print("  -> Action: Start game -> record x -> hold ArrowLeft -> verify x decreased")
-    game_page.keyboard.press("Space")
+    game_page.keyboard.press("Space")   # start -> menu
+    game_page.keyboard.press("Space")   # menu -> playing
     before = game_page.evaluate("() => player.x")
     game_page.keyboard.down("ArrowLeft")
     game_page.wait_for_timeout(800)
@@ -173,7 +174,8 @@ def test_move_left(game_page):
 def test_move_right(game_page):
     _print("\n[FUNCTIONAL TEST] Test: Hold ArrowRight -> player.x should increase")
     _print("  -> Action: Start game -> record x -> hold ArrowRight -> verify x increased")
-    game_page.keyboard.press("Space")
+    game_page.keyboard.press("Space")   # start -> menu
+    game_page.keyboard.press("Space")   # menu -> playing
     before = game_page.evaluate("() => player.x")
     game_page.keyboard.down("ArrowRight")
     game_page.wait_for_timeout(800)
@@ -186,7 +188,8 @@ def test_move_right(game_page):
 def test_move_up(game_page):
     _print("\n[FUNCTIONAL TEST] Test: Hold ArrowUp -> player.y should decrease")
     _print("  -> Action: Start game -> record y -> hold ArrowUp -> verify y decreased")
-    game_page.keyboard.press("Space")
+    game_page.keyboard.press("Space")   # start -> menu
+    game_page.keyboard.press("Space")   # menu -> playing
     before = game_page.evaluate("() => player.y")
     game_page.keyboard.down("ArrowUp")
     game_page.wait_for_timeout(800)
@@ -199,7 +202,8 @@ def test_move_up(game_page):
 def test_move_down(game_page):
     _print("\n[FUNCTIONAL TEST] Test: Hold ArrowDown -> player.y should increase")
     _print("  -> Action: Start game -> record y -> hold ArrowDown -> verify y increased")
-    game_page.keyboard.press("Space")
+    game_page.keyboard.press("Space")   # start -> menu
+    game_page.keyboard.press("Space")   # menu -> playing
     before = game_page.evaluate("() => player.y")
     game_page.keyboard.down("ArrowDown")
     game_page.wait_for_timeout(800)

@@ -21,8 +21,9 @@ def _print(msg):
 
 def test_spawn_asteroid_increases_count(game_page):
     _print("\n[INTEGRATION TEST] Test: After 3 seconds of gameplay, asteroids should appear")
-    _print("  -> Action: Press Space to start, wait 3 seconds for natural spawning")
-    game_page.keyboard.press("Space")
+    _print("  -> Action: Press Space twice to start, wait 3 seconds for natural spawning")
+    game_page.keyboard.press("Space")   # start -> menu
+    game_page.keyboard.press("Space")   # menu -> playing
     game_page.wait_for_timeout(3000)
 
     count = game_page.evaluate("() => asteroids.length")
@@ -32,8 +33,9 @@ def test_spawn_asteroid_increases_count(game_page):
 
 def test_spawn_asteroid_properties(game_page):
     _print("\n[INTEGRATION TEST] Test: Verify asteroid physical properties match spec")
-    _print("  -> Action: Press Space to start, wait 3 seconds for asteroids to spawn")
-    game_page.keyboard.press("Space")
+    _print("  -> Action: Press Space twice to start, wait 3 seconds for asteroids to spawn")
+    game_page.keyboard.press("Space")   # start -> menu
+    game_page.keyboard.press("Space")   # menu -> playing
     game_page.wait_for_timeout(3000)
 
     asteroid = game_page.evaluate("() => asteroids[0]")
@@ -46,7 +48,8 @@ def test_spawn_asteroid_properties(game_page):
 def test_boundary_left(game_page):
     _print("\n[INTEGRATION TEST] Test: Hold ArrowLeft long enough -> player should stop at left boundary")
     _print("  -> Action: Start game -> hold ArrowLeft 3s -> verify x >= player.w/2 (=18)")
-    game_page.keyboard.press("Space")
+    game_page.keyboard.press("Space")   # start -> menu
+    game_page.keyboard.press("Space")   # menu -> playing
     game_page.keyboard.down("ArrowLeft")
     game_page.wait_for_timeout(3000)
     game_page.keyboard.up("ArrowLeft")
@@ -58,7 +61,8 @@ def test_boundary_left(game_page):
 def test_boundary_right(game_page):
     _print("\n[INTEGRATION TEST] Test: Hold ArrowRight long enough -> player should stop at right boundary")
     _print("  -> Action: Start game -> hold ArrowRight 3s -> verify x <= W - player.w/2 (=462)")
-    game_page.keyboard.press("Space")
+    game_page.keyboard.press("Space")   # start -> menu
+    game_page.keyboard.press("Space")   # menu -> playing
     game_page.keyboard.down("ArrowRight")
     game_page.wait_for_timeout(3000)
     game_page.keyboard.up("ArrowRight")
@@ -70,7 +74,8 @@ def test_boundary_right(game_page):
 def test_boundary_top(game_page):
     _print("\n[INTEGRATION TEST] Test: Hold ArrowUp long enough -> player should stop at top boundary")
     _print("  -> Action: Start game -> hold ArrowUp 3s -> verify y >= player.h/2 (=28)")
-    game_page.keyboard.press("Space")
+    game_page.keyboard.press("Space")   # start -> menu
+    game_page.keyboard.press("Space")   # menu -> playing
     game_page.keyboard.down("ArrowUp")
     game_page.wait_for_timeout(3000)
     game_page.keyboard.up("ArrowUp")
@@ -82,7 +87,8 @@ def test_boundary_top(game_page):
 def test_boundary_bottom(game_page):
     _print("\n[INTEGRATION TEST] Test: Hold ArrowDown long enough -> player should stop at bottom boundary")
     _print("  -> Action: Start game -> hold ArrowDown 3s -> verify y <= H - player.h/2 (=612)")
-    game_page.keyboard.press("Space")
+    game_page.keyboard.press("Space")   # start -> menu
+    game_page.keyboard.press("Space")   # menu -> playing
     game_page.keyboard.down("ArrowDown")
     game_page.wait_for_timeout(3000)
     game_page.keyboard.up("ArrowDown")
@@ -96,7 +102,8 @@ def test_boundary_bottom(game_page):
 def test_score_dom_syncs_with_js(game_page):
     _print("\n[INTEGRATION TEST] Test: JS score change should reflect in #score DOM")
     _print("  -> Action: Start game -> set score=999 -> wait for game loop -> verify DOM == JS score")
-    game_page.keyboard.press("Space")
+    game_page.keyboard.press("Space")   # start -> menu
+    game_page.keyboard.press("Space")   # menu -> playing
     game_page.wait_for_timeout(200)
     game_page.evaluate("() => { score = 999; }")
     game_page.wait_for_timeout(200)
@@ -110,7 +117,8 @@ def test_score_dom_syncs_with_js(game_page):
 def test_laser_destroys_asteroid_and_scores(game_page):
     _print("\n[INTEGRATION TEST] Test: Laser hitting asteroid -> asteroid removed + score increases")
     _print("  -> Action: Start game -> fix player pos -> place asteroid in laser path -> fire -> wait -> verify")
-    game_page.keyboard.press("Space")
+    game_page.keyboard.press("Space")   # start -> menu
+    game_page.keyboard.press("Space")   # menu -> playing
     game_page.wait_for_timeout(200)
     initial_score = game_page.evaluate("""() => {
         player.x = 240; player.y = 550; player.vx = 0; player.vy = 0;
