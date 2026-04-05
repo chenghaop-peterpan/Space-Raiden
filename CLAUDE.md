@@ -42,9 +42,9 @@
 3. 跑測試（確認全過）
    .venv/Scripts/pytest.exe tests/ -v
 
-4. 補 changelog
-   - 新增 changelog/vX.Y.Z.md
-   - 更新 changelog/SUMMARY.md：新版本插入表格最上方
+4. 補 changelog（必做，merge 前不可跳過）
+   - 新增 changelog/vX.Y.Z.md（主題 / 新增 / 修改 / 修復 / 測試）
+   - 更新 changelog/SUMMARY.md：新版本插入表格最上方（新的在上）
 
 5. Commit & Push
    git add <files>
