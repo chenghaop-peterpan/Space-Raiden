@@ -1,4 +1,5 @@
 [tool.pytest.ini_options]
+addopts = "--html=report.html --self-contained-html"
 markers = [
     "smoke:       基本頁面可用性，開機確認（黑箱）",
     "unit:        純公式與算法驗算，最小單元（白箱）",

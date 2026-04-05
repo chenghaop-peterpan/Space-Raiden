@@ -1,0 +1,43 @@
+name: Pytest + Playwright
+
+on:
+  push:
+    branches: ["main", "feat/**", "release/**"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install dependencies
+        run: |
+          pip install \
+            pytest==9.0.2 \
+            playwright==1.58.0 \
+            pytest-playwright==0.7.2 \
+            pytest-html==4.2.0 \
+            pytest-metadata==3.1.1
+
+      - name: Install Playwright browsers
+        run: playwright install chromium --with-deps
+
+      - name: Run tests
+        run: pytest tests/ -v --tb=short
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-report
+          path: report.html
+          retention-days: 14

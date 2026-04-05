@@ -6,7 +6,9 @@ import os
 
 @pytest.fixture(scope="session")
 def browser_type_launch_args(browser_type_launch_args):
-    return {**browser_type_launch_args, "headless": False}
+    # CI=true (GitHub Actions) → headless；本機開發 → headed（保留視窗）
+    headless = os.environ.get("CI", "false").lower() == "true"
+    return {**browser_type_launch_args, "headless": headless}
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PORT = 8765
