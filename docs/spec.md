@@ -191,6 +191,63 @@ executeCommand({ left: true, shoot: true })
 
 ---
 
+## Benchmark 系統
+
+### 資料結構
+
+#### `runHistory[]`
+
+每局結束後呼叫 `recordRun()` 自動寫入：
+
+```javascript
+{
+  run:      number,       // 累計場次編號
+  score:    number,
+  level:    number,
+  accuracy: number,       // 命中率 0–100（%）
+  frames:   number,       // 存活幀數
+  mode:     'player'|'ai',
+  states: { Idle, Tracking, Firing, Evading, Dodging } // AI 幀數分布
+}
+```
+
+#### `stateFrameCounts`
+
+每幀於 `aiUpdate()` 末尾自動累加：
+
+```javascript
+stateFrameCounts[aiDecisionState]++;
+```
+
+隨 `startGame()` 重置。
+
+---
+
+### 三大功能
+
+| 功能 | 觸發 | 說明 |
+|------|------|------|
+| **Canvas 趨勢圖**（Plan A） | 自動（gameover 畫面） | 最近 10 場分數長條圖，當場用青色高亮 |
+| **HTML 歷史表格**（Plan B） | `B` 鍵切換 | 浮層面板，顯示全部場次詳細數據 |
+| **CSV 匯出**（Plan C） | `E` 鍵 / 面板按鈕 | 下載 `benchmark.csv` |
+
+### HTML 面板（`#benchmark-panel`）
+
+- 摘要列：場次數、平均分數、最高分數
+- 表格欄位：`#`、分數、等級、命中率、時長、Idle/Track/Fire/Evade/Dodge（%）
+- 最新一場以黃色 `#ff8` 標示
+- `B` 鍵 / 「✕ 關閉」按鈕可關閉
+
+### CSV 格式
+
+```
+Run,Score,Level,Accuracy(%),Duration(s),Idle(%),Tracking(%),Firing(%),Evading(%),Dodging(%)
+1,342,2,65,15.2,20,35,18,22,5
+...
+```
+
+---
+
 ## 效能考量
 
 - 所有物件以陣列管理，每幀用 `filter` 移除過期物件

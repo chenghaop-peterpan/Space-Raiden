@@ -216,3 +216,69 @@ def test_getgamestate_asteroids_exported(playing_page):
     assert result["r"] == 25
     assert result["hp"] == 1
     _print(f"  [OK] asteroid exported: x={result['x']}, r={result['r']}, hp={result['hp']}")
+
+
+# ── recordRun() / Benchmark ────────────────────────────────────────────────────
+
+def test_record_run_appends_to_history(playing_page):
+    _print("\n[UNIT TEST] Test: recordRun() appends one entry to runHistory")
+    result = playing_page.evaluate("""() => {
+        runHistory = [];
+        score = 250; level = 2; shotsFired = 10; shotsHit = 7;
+        frameCount = 600;
+        recordRun();
+        return runHistory.length;
+    }""")
+    assert result == 1
+    _print(f"  [OK] runHistory.length={result}")
+
+
+def test_record_run_captures_score_and_level(playing_page):
+    _print("\n[UNIT TEST] Test: recordRun() captures correct score and level")
+    result = playing_page.evaluate("""() => {
+        runHistory = [];
+        score = 500; level = 3; shotsFired = 20; shotsHit = 12; frameCount = 1200;
+        recordRun();
+        return { score: runHistory[0].score, level: runHistory[0].level };
+    }""")
+    assert result["score"] == 500
+    assert result["level"] == 3
+    _print(f"  [OK] score={result['score']}, level={result['level']}")
+
+
+def test_record_run_calculates_accuracy(playing_page):
+    _print("\n[UNIT TEST] Test: recordRun() calculates accuracy = hits/fired*100")
+    result = playing_page.evaluate("""() => {
+        runHistory = [];
+        score = 100; level = 1; shotsFired = 10; shotsHit = 8; frameCount = 300;
+        recordRun();
+        return runHistory[0].accuracy;
+    }""")
+    assert result == 80
+    _print(f"  [OK] accuracy={result}% (8/10 hits)")
+
+
+def test_record_run_zero_shots_accuracy(playing_page):
+    _print("\n[UNIT TEST] Test: recordRun() accuracy is 0 when no shots fired")
+    result = playing_page.evaluate("""() => {
+        runHistory = [];
+        score = 50; level = 1; shotsFired = 0; shotsHit = 0; frameCount = 300;
+        recordRun();
+        return runHistory[0].accuracy;
+    }""")
+    assert result == 0
+    _print(f"  [OK] accuracy={result}% (no shots fired)")
+
+
+def test_record_run_increments_run_number(playing_page):
+    _print("\n[UNIT TEST] Test: recordRun() auto-increments run number")
+    result = playing_page.evaluate("""() => {
+        runHistory = [];
+        score = 100; level = 1; shotsFired = 5; shotsHit = 3; frameCount = 300;
+        recordRun();
+        score = 200; recordRun();
+        return { first: runHistory[0].run, second: runHistory[1].run };
+    }""")
+    assert result["first"] == 1
+    assert result["second"] == 2
+    _print(f"  [OK] run numbers: {result['first']}, {result['second']}")
