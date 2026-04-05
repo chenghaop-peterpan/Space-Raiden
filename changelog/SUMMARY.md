@@ -4,6 +4,7 @@
 
 | 版本 | 日期 | 主題 |
 |------|------|------|
+| [v1.3.5](v1.3.5.md) | 2026-04-06 | CI paths filter：只有 game/tests/workflow 變動才觸發 CI |
 | [v1.3.4](v1.3.4.md) | 2026-04-06 | GitHub Actions CI 優化：Playwright caching + pip cache + 觸發條件精簡 |
 | [v1.3.3](v1.3.3.md) | 2026-04-06 | requirements.txt + roadmap.md 備忘錄機制 |
 | [v1.3.2](v1.3.2.md) | 2026-04-05 | CLAUDE.md 規則補強：changelog 必做、merge 後刪 branch |
