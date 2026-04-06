@@ -293,11 +293,11 @@ document.addEventListener('keydown', e => {
   if (e.code === 'Space') {
     e.preventDefault();
     if (state === 'playing')                      fireLaser();
-    else if (state === 'start' || state === 'gameover') state = 'menu';
+    else if (state === 'start' || state === 'gameover') { state = 'menu'; shake = 0; }
     else if (state === 'menu')                    confirmMenu();
   }
   if (e.code === 'Enter') {
-    if      (state === 'start' || state === 'gameover') state = 'menu';
+    if      (state === 'start' || state === 'gameover') { state = 'menu'; shake = 0; }
     else if (state === 'menu')                          confirmMenu();
   }
   if ((e.code === 'ArrowUp' || e.code === 'ArrowDown') && state === 'menu') {
@@ -305,7 +305,7 @@ document.addEventListener('keydown', e => {
     e.preventDefault();
   }
   if (e.code === 'Escape' && state === 'ai_params') {
-    hideAiPanel(); state = 'menu';
+    hideAiPanel(); state = 'menu'; shake = 0;
   }
   if (e.code === 'KeyH') hudVisible = !hudVisible;
   if (e.code === 'KeyB') {
@@ -387,7 +387,7 @@ function getGameState() {
     laserCooldown,
     asteroids: asteroids.map(a => ({ x: a.x, y: a.y, r: a.r, vx: a.vx, vy: a.vy, hp: a.hp })),
     lasers:    lasers.map(l => ({ x: l.x, y: l.y, vy: l.vy })),
-    score, lives, level, frameCount, state, gameMode,
+    score, lives, level, frameCount, state, gameMode, shake,
   };
 }
 
@@ -515,7 +515,7 @@ function update() {
     if (a.hp <= 0) return false;
 
     // 碰到玩家
-    if (invincible === 0) {
+    if (invincible === 0 && state === 'playing') {
       const dx = player.x - a.x, dy = player.y - a.y;
       const dist = Math.sqrt(dx*dx + dy*dy);
       if (dist < a.r + 16) {
@@ -523,7 +523,7 @@ function update() {
         invincible = 120;
         shake = 20;
         explode(a.x, a.y, false);
-        if (lives <= 0) { state = 'dead'; explode(player.x, player.y, true); setTimeout(()=>{ state='gameover'; recordRun(); }, 1200); }
+        if (lives <= 0) { state = 'dead'; explode(player.x, player.y, true); setTimeout(()=>{ state='gameover'; shake = 0; recordRun(); }, 1200); }
         return false;
       }
     }
