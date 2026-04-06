@@ -97,3 +97,30 @@ def test_invincible_decrements_each_frame(playing_page):
     }""")
     assert result == 119
     _print(f"  [OK] invincible: 120 → {result} (decremented by 1)")
+
+
+def test_shake_resets_on_gameover(playing_page):
+    _print("\n[REGRESSION TEST] Test: shake must be 0 when state transitions to 'gameover'")
+    _print("  -> setTimeout callback must reset shake=0 to prevent frozen screen shake")
+    playing_page.evaluate("""() => {
+        lives = 1;
+        invincible = 0;
+        asteroids = [{ x: player.x, y: player.y, r: 20, hp: 1, vx: 0, vy: 0 }];
+        update();
+    }""")
+    playing_page.wait_for_timeout(1400)  # 等待 dead → gameover（1200ms）
+    result = playing_page.evaluate("() => ({ state, shake })")
+    assert result["state"] == "gameover"
+    assert result["shake"] == 0
+    _print(f"  [OK] state={result['state']}, shake={result['shake']} (no residual screen shake)")
+
+
+def test_shake_resets_on_menu(playing_page):
+    _print("\n[REGRESSION TEST] Test: shake must be 0 when returning to menu from gameover")
+    _print("  -> Space/Enter from gameover must clear shake to prevent menu screen shake")
+    playing_page.evaluate("() => { state = 'gameover'; shake = 15; }")
+    playing_page.keyboard.press("Space")  # gameover → menu
+    result = playing_page.evaluate("() => ({ state, shake })")
+    assert result["state"] == "menu"
+    assert result["shake"] == 0
+    _print(f"  [OK] state={result['state']}, shake={result['shake']} (shake cleared on menu entry)")
