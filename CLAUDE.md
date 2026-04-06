@@ -80,6 +80,18 @@
 
 ---
 
+## 可用 Slash Commands（Skills）
+
+| 指令 | 用法 | 功能 |
+|------|------|------|
+| `/new-version` | `/new-version feat/v1.5.0` | 從 main 建立新 branch |
+| `/test` | `/test` | 跑全套測試並回報結果 |
+| `/release` | `/release` | 全自動 release 流程（含確認步驟） |
+
+Skills 定義檔位於 `.claude/commands/`。
+
+---
+
 ## 版本號規則
 
 | 類型 | 版號 |

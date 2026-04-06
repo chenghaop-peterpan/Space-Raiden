@@ -19,6 +19,9 @@
 | v1.3.3 | requirements.txt + roadmap.md 備忘錄機制 |
 | v1.3.4 | CI 優化：Playwright caching + pip cache + 觸發條件精簡 |
 | v1.3.5 | CI paths filter + 備忘錄同步 |
+| v1.3.6 | CLAUDE.md 語言規則：只使用繁體中文或英文回覆 |
+| v1.3.7 | Bugfix：結算/選單畫面 shake 殘留 + UX regression 測試 |
+| v1.4.0 | Skills + MCP 基礎建設：/new-version、/test、/release、GitHub MCP |
 
 ---
 
