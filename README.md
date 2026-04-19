@@ -2,19 +2,33 @@
 
 # 太空梭躲避隕石
 
-一款以 HTML5 Canvas 實作的瀏覽器太空射擊遊戲。玩家駕駛太空梭，在不斷湧入的隕石雨中求生，同時發射雷射摧毀障礙。
+一款以 HTML5 Canvas 實作的瀏覽器太空射擊遊戲。玩家駕駛太空梭，在不斷湧入的隕石雨中求生，同時發射雷射摧毀障礙。支援玩家手動操控與 AI 自動駕駛模式。
 
 ## 快速開始
 
 直接用瀏覽器開啟 `space_dodge.html` 即可遊玩，無需安裝任何套件。
+
+## 遊戲模式
+
+| 模式 | 說明 |
+|------|------|
+| **玩家模式** | 鍵盤操控太空梭，手動閃躲與射擊 |
+| **AI 模式** | 選擇 AI 策略（威脅迴避 / 強攻型 / 防守型），調整 5 項參數後自動執行；支援 Epoch 批次連跑 N 局統計平均分 |
+| **遊戲設定** | Dash 功能開關、方向設定、無敵秒數、冷卻秒數 |
 
 ## 操控方式
 
 | 按鍵 | 動作 |
 |------|------|
 | 方向鍵 / WASD | 移動太空梭 |
-| Space | 發射雷射 / 開始遊戲 |
-| Enter | 開始遊戲 |
+| Space / Enter | 發射雷射 / 確認選單 |
+| Shift | Dash（瞬間向上位移 56px，有冷卻時間） |
+| H | Debug HUD 開關（顯示 AI 決策狀態、命中率等） |
+| B | Benchmark 面板開關（歷史場次表格） |
+| E | 匯出 Benchmark CSV |
+| R | 安全距離視覺化開關（AI 模式，紅色虛線圓圈） |
+| Esc | 返回選單 |
+| ↑ / ↓ | 選單選項切換 |
 
 ## 遊戲機制
 
@@ -22,6 +36,31 @@
 - **分數**：每 6 幀自動累積 1 分；擊毀小隕石 +15 分，大隕石 +30 分
 - **等級**：每累積 300 分升一級，隕石速度與生成頻率隨等級提升
 - **雷射冷卻**：每次發射後需等待 12 幀才能再次發射
+- **Dash**：Shift 鍵（玩家）或 AI 自動觸發，瞬間往上位移一個火箭高度（56px）；可選開啟無敵幀（預設 1 秒）；冷卻時間預設 2 秒；Dash 前位置留下青色淡出殘影
+
+## AI 模式
+
+### 策略
+
+| 策略 | 風格 | Dash 觸發門檻 |
+|------|------|-------------|
+| 威脅迴避 | 均衡型，兼顧閃躲與射擊 | safetyRadius × 0.35 |
+| 強攻型 | 偏好射擊，保守使用 Dash | safetyRadius × 0.25 |
+| 防守型 | 優先逃生，積極使用 Dash | safetyRadius × 0.50 |
+
+### Epoch 批次執行
+
+在 AI 參數面板選擇 Epoch 數（10 / 20 / 30 局），執行完畢後自動顯示統計：平均分、最高分、標準差。
+
+### API（外部控制）
+
+```javascript
+// 讀取遊戲快照
+const gs = getGameState();
+
+// 控制飛船（鍵盤或 AI 皆透過此函數）
+executeCommand({ left, right, up, down, shoot, dash });
+```
 
 ## 測試規範
 
@@ -35,11 +74,9 @@
 | **Integration Test** | 白/黑箱 | 多系統串聯，依賴真實 game loop |
 | **Regression Test** | 黑箱 | 邊界情境守衛，防止已知行為退化 |
 
-**快速執行：**
+**執行測試：**
 ```bash
-pytest -m "unit or smoke"      # ~15s 改完立即跑
-pytest -m "not integration"    # ~40s commit 前
-pytest                         # ~90s 上線前全跑
+CI=true .venv/Scripts/pytest.exe tests/ -v   # headless（本機與 CI 統一）
 ```
 
 詳細環境設定與測試撰寫規範請參閱 [`docs/testSpec.md`](docs/testSpec.md)
@@ -60,15 +97,18 @@ second_project/
 ├── README.md
 ├── changelog/
 │   ├── SUMMARY.md         # 所有版本摘要
-│   └── v1.0.0.md          # v1.0.0 改動記錄
+│   ├── v1.6.1.md
+│   ├── v1.6.0.md
+│   └── ...                # v1.0.0 ~ v1.5.1
 ├── docs/
+│   ├── roadmap.md         # 開發進度與 backlog
 │   ├── spec.md            # 技術規格文件
 │   └── testSpec.md        # 測試規範文件
 └── tests/
     ├── conftest.py        # pytest fixture（本機伺服器）
-    ├── test_smoke.py        # Smoke tests      (10)
-    ├── test_unit.py         # Unit tests       (8)
-    ├── test_functional.py   # Functional tests (16)
-    ├── test_integration.py  # Integration tests (8)
-    └── test_regression.py   # Regression tests  (6)
+    ├── test_smoke.py        # Smoke tests
+    ├── test_unit.py         # Unit tests
+    ├── test_functional.py   # Functional tests
+    ├── test_integration.py  # Integration tests
+    └── test_regression.py   # Regression tests
 ```
