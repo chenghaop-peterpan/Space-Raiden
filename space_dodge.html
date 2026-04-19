@@ -97,7 +97,7 @@
     border: 1px solid #0ff;
     box-shadow: 0 0 30px #0ff6, 0 0 60px #0ff2;
     padding: 20px 24px;
-    width: 660px;
+    width: 760px;
     font-family: 'Courier New', monospace;
     color: #0ff;
     flex-direction: column;
@@ -159,6 +159,43 @@
     background: rgba(0,255,255,0.1);
     box-shadow: 0 0 12px #0ff;
   }
+  .strat-btn, .epoch-btn {
+    flex: 1;
+    padding: 5px 0;
+    background: transparent;
+    border: 1px solid #0ff4;
+    color: #0ff8;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .strat-btn.active, .epoch-btn.active {
+    background: rgba(0,255,255,0.18);
+    border-color: #0ff;
+    color: #fff;
+  }
+  .strat-btn:hover, .epoch-btn:hover {
+    background: rgba(0,255,255,0.1);
+  }
+  #epoch-summary-table {
+    width: 100%;
+    font-size: 11px;
+    color: #aef;
+    border-collapse: collapse;
+    margin-bottom: 8px;
+  }
+  #epoch-summary-table th {
+    color: #ff8;
+    border-bottom: 1px solid #ff84;
+    padding: 3px 6px;
+    text-align: center;
+  }
+  #epoch-summary-table td {
+    padding: 2px 6px;
+    text-align: center;
+    border-bottom: 1px solid #ff82;
+  }
 </style>
 </head>
 <body>
@@ -167,6 +204,7 @@
   <span>分數：<span id="score">0</span></span>
   <span>生命：<span id="lives">❤️❤️❤️</span></span>
   <span>等級：<span id="level">1</span></span>
+  <span id="epoch-hud" style="display:none;">Epoch <span id="epoch-cur">0</span>/<span id="epoch-total">1</span></span>
 </div>
 <canvas id="canvas" width="480" height="640"></canvas>
 <div id="ai-panel">
@@ -196,6 +234,23 @@
     <input type="range" id="p-look" min="10" max="60" step="5" value="20">
     <span class="param-val" id="v-look">20 fr</span>
   </div>
+  <div class="param-row" style="margin-top:10px;">
+    <span class="param-label">AI 策略</span>
+    <div id="strategy-btns" style="display:flex;gap:6px;flex:1;">
+      <button class="strat-btn active" data-strat="threat">威脅迴避</button>
+      <button class="strat-btn" data-strat="aggressive">強攻型</button>
+      <button class="strat-btn" data-strat="defensive">防守型</button>
+    </div>
+  </div>
+  <div class="param-row">
+    <span class="param-label">Epoch</span>
+    <div id="epoch-btns" style="display:flex;gap:6px;flex:1;">
+      <button class="epoch-btn active" data-epoch="1">×1</button>
+      <button class="epoch-btn" data-epoch="10">×10</button>
+      <button class="epoch-btn" data-epoch="20">×20</button>
+      <button class="epoch-btn" data-epoch="30">×30</button>
+    </div>
+  </div>
   <div id="ai-buttons">
     <button id="btn-back">◄ 返回</button>
     <button id="btn-start">開始 AI ►</button>
@@ -205,14 +260,27 @@
   <h2>Benchmark 歷史紀錄</h2>
   <div id="bm-summary">
     <span>共 <span id="bm-count">0</span> 場</span>
-    <span>平均分數：<span id="bm-avg">—</span></span>
-    <span>最高分數：<span id="bm-best">—</span></span>
+    <span>均分：<span id="bm-avg">—</span></span>
+    <span>最高：<span id="bm-best">—</span></span>
+    <span>標準差：<span id="bm-std">—</span></span>
+    <span>均存活：<span id="bm-avgtime">—</span>s</span>
+  </div>
+  <div id="epoch-summary-wrap" style="max-height:80px;overflow-y:auto;margin-bottom:6px;">
+    <table id="epoch-summary-table">
+      <thead>
+        <tr>
+          <th>EpochID</th><th>策略</th><th>局數</th>
+          <th>均分</th><th>最高</th><th>標準差</th><th>均時長</th>
+        </tr>
+      </thead>
+      <tbody id="epoch-summary-tbody"></tbody>
+    </table>
   </div>
   <div id="bm-table-wrap">
     <table id="bm-table">
       <thead>
         <tr>
-          <th>#</th><th>分數</th><th>等級</th><th>命中率</th>
+          <th>#</th><th>Epoch</th><th>策略</th><th>分數</th><th>等級</th><th>命中率</th>
           <th>時長</th><th>Idle</th><th>Track</th><th>Fire</th>
           <th>Evade</th><th>Dodge</th>
         </tr>
@@ -244,6 +312,168 @@ let aiParams = {
   aggressionLevel:   7,
   lookaheadFrames:  20,
 };
+
+// --- AI 策略 ---
+let currentStrategy = 'threat'; // 'threat' | 'aggressive' | 'defensive'
+
+function _threatDecide(gs, p) {
+  const px = gs.player.x, py = gs.player.y;
+  let left = false, right = false, up = false, down = false, shoot = false;
+  let threat = null, maxThreat = 0;
+  gs.asteroids.forEach(a => {
+    const dist = Math.hypot(px - a.x, py - a.y);
+    const danger = a.vy / Math.max(dist, 1);
+    if (dist < p.safetyRadius * 2 && danger > maxThreat) { maxThreat = danger; threat = a; }
+  });
+  let evading = false;
+  if (threat) {
+    const fx = threat.x + threat.vx * p.lookaheadFrames;
+    const fy = threat.y + threat.vy * p.lookaheadFrames;
+    if (Math.hypot(px - fx, py - fy) < p.safetyRadius) {
+      left  = px < fx;
+      right = px > fx;
+      if (py < fy) down = true;
+      evading = true;
+    }
+  }
+  gs.asteroids.forEach(a => {
+    if (a.y < py && Math.abs(a.x - px) < p.aimTolerance && Math.random() < p.aggressionLevel / 10) shoot = true;
+  });
+  return { left, right, up, down, shoot, _threat: threat, _evading: evading };
+}
+
+function _threatState(gs, p) {
+  const res = _threatDecide(gs, p);
+  if (res._evading && res._threat) {
+    return Math.hypot(gs.player.x - res._threat.x, gs.player.y - res._threat.y) < p.safetyRadius * 0.5 ? 'Dodging' : 'Evading';
+  }
+  if (res.shoot) return 'Firing';
+  if (gs.asteroids.some(a => a.y < gs.player.y)) return 'Tracking';
+  return 'Idle';
+}
+
+const AI_STRATEGIES = {
+  threat: {
+    name: '威脅迴避',
+    decide(gs, p) {
+      const r = _threatDecide(gs, p);
+      return { left: r.left, right: r.right, up: r.up, down: r.down, shoot: r.shoot };
+    },
+    getDecisionState: _threatState,
+  },
+
+  aggressive: {
+    name: '強攻型',
+    decide(gs, p) {
+      const px = gs.player.x, py = gs.player.y;
+      let left = false, right = false, up = false, down = false, shoot = false;
+      const safeR = p.safetyRadius * 0.6;
+      const aimTol = p.aimTolerance * 1.5;
+      // 只在非常近時才迴避
+      let threat = null, maxThreat = 0;
+      gs.asteroids.forEach(a => {
+        const dist = Math.hypot(px - a.x, py - a.y);
+        const danger = a.vy / Math.max(dist, 1);
+        if (dist < safeR * 2 && danger > maxThreat) { maxThreat = danger; threat = a; }
+      });
+      let evading = false;
+      if (threat) {
+        const fx = threat.x + threat.vx * p.lookaheadFrames;
+        const fy = threat.y + threat.vy * p.lookaheadFrames;
+        if (Math.hypot(px - fx, py - fy) < safeR) {
+          left = px < fx; right = px > fx;
+          if (py < fy) down = true;
+          evading = true;
+        }
+      }
+      // 主動對齊最近可攻擊目標
+      if (!evading) {
+        let target = null, minDist = Infinity;
+        gs.asteroids.forEach(a => {
+          if (a.y < py) { const d = Math.abs(a.x - px); if (d < minDist) { minDist = d; target = a; } }
+        });
+        if (target) {
+          if (target.x < px - 4) left = true;
+          else if (target.x > px + 4) right = true;
+        }
+      }
+      // 積極射擊
+      gs.asteroids.forEach(a => {
+        if (a.y < py && Math.abs(a.x - px) < aimTol && Math.random() < 0.9) shoot = true;
+      });
+      return { left, right, up, down, shoot, _threat: threat, _evading: evading };
+    },
+    getDecisionState(gs, p) {
+      const res = this.decide(gs, p);
+      if (res._evading && res._threat) {
+        return Math.hypot(gs.player.x - res._threat.x, gs.player.y - res._threat.y) < p.safetyRadius * 0.3 ? 'Dodging' : 'Evading';
+      }
+      if (res.shoot) return 'Firing';
+      if (gs.asteroids.some(a => a.y < gs.player.y)) return 'Tracking';
+      return 'Idle';
+    },
+  },
+
+  defensive: {
+    name: '防守型',
+    decide(gs, p) {
+      const px = gs.player.x, py = gs.player.y;
+      let left = false, right = false, up = false, down = false, shoot = false;
+      const safeR = p.safetyRadius * 1.5;
+      const look  = p.lookaheadFrames * 1.8;
+      // 更早開始逃跑
+      let threat = null, maxThreat = 0;
+      gs.asteroids.forEach(a => {
+        const dist = Math.hypot(px - a.x, py - a.y);
+        const danger = a.vy / Math.max(dist, 1);
+        if (dist < safeR * 2 && danger > maxThreat) { maxThreat = danger; threat = a; }
+      });
+      let evading = false;
+      if (threat) {
+        const fx = threat.x + threat.vx * look;
+        const fy = threat.y + threat.vy * look;
+        if (Math.hypot(px - fx, py - fy) < safeR) {
+          left = px < fx; right = px > fx;
+          if (py < fy) down = true;
+          evading = true;
+        }
+      }
+      // 往畫面下半部中央靠攏（無威脅時）
+      if (!evading) {
+        const targetX = W / 2, targetY = H * 0.78;
+        if (px < targetX - 10) right = true;
+        else if (px > targetX + 10) left = true;
+        if (py < targetY - 10) down = true;
+        else if (py > targetY + 10) up = true;
+      }
+      // 邊界排斥
+      if (px < W * 0.15) right = true;
+      if (px > W * 0.85) left = true;
+      // 保守射擊
+      gs.asteroids.forEach(a => {
+        if (a.y < py && Math.abs(a.x - px) < p.aimTolerance * 0.6 && Math.random() < 0.3) shoot = true;
+      });
+      return { left, right, up, down, shoot, _threat: threat, _evading: evading };
+    },
+    getDecisionState(gs, p) {
+      const res = this.decide(gs, p);
+      if (res._evading && res._threat) {
+        return Math.hypot(gs.player.x - res._threat.x, gs.player.y - res._threat.y) < p.safetyRadius * 0.75 ? 'Dodging' : 'Evading';
+      }
+      if (res.shoot) return 'Firing';
+      if (gs.asteroids.some(a => a.y < gs.player.y)) return 'Tracking';
+      return 'Idle';
+    },
+  },
+};
+
+// --- Epoch 系統 ---
+let epochSize       = 1;
+let epochCurrent    = 0;
+let epochIdCounter  = 0;
+let currentEpochId  = null;
+let epochRunsBuffer = [];
+let epochHistory    = [];
 let frameCount = 0;
 let invincible = 0;      // 無敵幀數
 let shake = 0;           // 震動幀數
@@ -293,11 +523,11 @@ document.addEventListener('keydown', e => {
   if (e.code === 'Space') {
     e.preventDefault();
     if (state === 'playing')                      fireLaser();
-    else if (state === 'start' || state === 'gameover') { state = 'menu'; shake = 0; }
+    else if (state === 'start' || state === 'gameover') { currentEpochId = null; epochCurrent = 0; document.getElementById('epoch-hud').style.display = 'none'; state = 'menu'; shake = 0; }
     else if (state === 'menu')                    confirmMenu();
   }
   if (e.code === 'Enter') {
-    if      (state === 'start' || state === 'gameover') { state = 'menu'; shake = 0; }
+    if      (state === 'start' || state === 'gameover') { currentEpochId = null; epochCurrent = 0; document.getElementById('epoch-hud').style.display = 'none'; state = 'menu'; shake = 0; }
     else if (state === 'menu')                          confirmMenu();
   }
   if ((e.code === 'ArrowUp' || e.code === 'ArrowDown') && state === 'menu') {
@@ -306,6 +536,10 @@ document.addEventListener('keydown', e => {
   }
   if (e.code === 'Escape' && state === 'ai_params') {
     hideAiPanel(); state = 'menu'; shake = 0;
+  }
+  if (e.code === 'Escape' && (state === 'playing' || state === 'gameover')) {
+    currentEpochId = null; epochCurrent = 0;
+    document.getElementById('epoch-hud').style.display = 'none';
   }
   if (e.code === 'KeyH') hudVisible = !hudVisible;
   if (e.code === 'KeyB') {
@@ -328,6 +562,14 @@ function startGame(mode = 'player') {
   player.x = W / 2; player.y = H - 90;
   player.vx = 0; player.vy = 0;
   player.trail = [];
+  // epoch HUD
+  if (mode === 'ai' && epochSize > 1) {
+    document.getElementById('epoch-hud').style.display = '';
+    document.getElementById('epoch-cur').textContent   = epochCurrent + 1;
+    document.getElementById('epoch-total').textContent = epochSize;
+  } else {
+    document.getElementById('epoch-hud').style.display = 'none';
+  }
 }
 
 // --- 產生隕石 ---
@@ -402,52 +644,12 @@ function executeCommand(cmd = {}) {
 
 // --- AI 控制 ---
 function aiUpdate() {
-  let left = false, right = false, up = false, down = false, shoot = false;
-
-  // 找最危險的隕石
-  let threat = null, maxThreat = 0;
-  asteroids.forEach(a => {
-    const dist = Math.hypot(player.x - a.x, player.y - a.y);
-    const danger = a.vy / Math.max(dist, 1);
-    if (dist < aiParams.safetyRadius * 2 && danger > maxThreat) { maxThreat = danger; threat = a; }
-  });
-
-  // 閃躲
-  let evading = false;
-  if (threat) {
-    const px = threat.x + threat.vx * aiParams.lookaheadFrames;
-    const py = threat.y + threat.vy * aiParams.lookaheadFrames;
-    if (Math.hypot(player.x - px, player.y - py) < aiParams.safetyRadius) {
-      left  = player.x < px;
-      right = player.x > px;
-      if (player.y < py) down = true;
-      evading = true;
-    }
-  }
-
-  // 攻擊
-  asteroids.forEach(a => {
-    if (a.y < player.y &&
-        Math.abs(a.x - player.x) < aiParams.aimTolerance &&
-        Math.random() < aiParams.aggressionLevel / 10) {
-      shoot = true;
-    }
-  });
-
-  // 決策狀態（5 種）
-  if (evading) {
-    const nearDist = Math.hypot(player.x - threat.x, player.y - threat.y);
-    aiDecisionState = nearDist < aiParams.safetyRadius * 0.5 ? 'Dodging' : 'Evading';
-  } else if (shoot) {
-    aiDecisionState = 'Firing';
-  } else if (asteroids.some(a => a.y < player.y)) {
-    aiDecisionState = 'Tracking';
-  } else {
-    aiDecisionState = 'Idle';
-  }
-
+  const gs    = getGameState();
+  const strat = AI_STRATEGIES[currentStrategy];
+  const cmd   = strat.decide(gs, aiParams);
+  aiDecisionState = strat.getDecisionState(gs, aiParams);
   stateFrameCounts[aiDecisionState]++;
-  executeCommand({ left, right, up, down, shoot });
+  executeCommand(cmd);
 }
 
 // --- 更新 ---
@@ -631,8 +833,7 @@ function drawShuttle(x, y, blink) {
 
 // --- Benchmark ---
 function recordRun() {
-  const totalSF = Object.values(stateFrameCounts).reduce((a, b) => a + b, 0) || 1;
-  runHistory.push({
+  const entry = {
     run:      runHistory.length + 1,
     score,
     level,
@@ -640,8 +841,69 @@ function recordRun() {
     frames:   frameCount,
     mode:     gameMode,
     states:   { ...stateFrameCounts },
-  });
+    strategy: currentStrategy,
+    epochId:  currentEpochId,
+  };
+  runHistory.push(entry);
+  if (currentEpochId !== null) epochRunsBuffer.push(entry);
   renderBenchmarkPanel();
+  if (gameMode === 'ai' && epochSize > 1 && currentEpochId !== null) advanceEpoch();
+}
+
+function setStrategy(name) {
+  currentStrategy = name;
+  document.querySelectorAll('.strat-btn').forEach(b => b.classList.toggle('active', b.dataset.strat === name));
+}
+
+function setEpochSize(n) {
+  epochSize = n;
+  document.querySelectorAll('.epoch-btn').forEach(b => b.classList.toggle('active', +b.dataset.epoch === n));
+}
+
+function startEpoch() {
+  epochIdCounter++;
+  currentEpochId  = 'E' + epochIdCounter;
+  epochCurrent    = 0;
+  epochRunsBuffer = [];
+  startGame('ai');
+}
+
+function advanceEpoch() {
+  if (currentEpochId === null) return;
+  epochCurrent++;
+  document.getElementById('epoch-cur').textContent = epochCurrent;
+  if (epochCurrent >= epochSize) {
+    finalizeEpoch();
+  } else {
+    setTimeout(() => startGame('ai'), 400);
+  }
+}
+
+function calcStdDev(arr) {
+  if (arr.length < 2) return 0;
+  const avg = arr.reduce((s, v) => s + v, 0) / arr.length;
+  return Math.round(Math.sqrt(arr.reduce((s, v) => s + (v - avg) ** 2, 0) / arr.length));
+}
+
+function finalizeEpoch() {
+  const scores = epochRunsBuffer.map(r => r.score);
+  const frames = epochRunsBuffer.map(r => r.frames);
+  const summary = {
+    epochId:   currentEpochId,
+    strategy:  AI_STRATEGIES[currentStrategy].name,
+    epochSize: epochRunsBuffer.length,
+    avgScore:  Math.round(scores.reduce((s, v) => s + v, 0) / scores.length),
+    bestScore: Math.max(...scores),
+    stdDev:    calcStdDev(scores),
+    avgFrames: Math.round(frames.reduce((s, v) => s + v, 0) / frames.length),
+  };
+  epochHistory.push(summary);
+  currentEpochId = null;
+  epochCurrent   = 0;
+  document.getElementById('epoch-hud').style.display = 'none';
+  renderBenchmarkPanel();
+  benchmarkVisible = true;
+  document.getElementById('benchmark-panel').style.display = 'flex';
 }
 
 function renderBenchmarkPanel() {
@@ -650,8 +912,11 @@ function renderBenchmarkPanel() {
   tbody.innerHTML = runHistory.slice().reverse().map(r => {
     const totalSF = Object.values(r.states).reduce((a, b) => a + b, 0) || 1;
     const pct = s => Math.round(s / totalSF * 100) + '%';
+    const stratName = r.strategy ? (AI_STRATEGIES[r.strategy]?.name ?? r.strategy) : '—';
     return `<tr>
       <td>${r.run}</td>
+      <td>${r.epochId ?? '—'}</td>
+      <td>${stratName}</td>
       <td>${r.score}</td>
       <td>${r.level}</td>
       <td>${r.accuracy}%</td>
@@ -665,20 +930,35 @@ function renderBenchmarkPanel() {
   }).join('');
   document.getElementById('bm-count').textContent = runHistory.length;
   if (runHistory.length > 0) {
-    const avg  = Math.round(runHistory.reduce((a, r) => a + r.score, 0) / runHistory.length);
-    const best = Math.max(...runHistory.map(r => r.score));
-    document.getElementById('bm-avg').textContent  = avg;
-    document.getElementById('bm-best').textContent = best;
+    const scores = runHistory.map(r => r.score);
+    const avg    = Math.round(scores.reduce((s, v) => s + v, 0) / scores.length);
+    const best   = Math.max(...scores);
+    document.getElementById('bm-avg').textContent     = avg;
+    document.getElementById('bm-best').textContent    = best;
+    document.getElementById('bm-std').textContent     = calcStdDev(scores);
+    document.getElementById('bm-avgtime').textContent =
+      (runHistory.reduce((s, r) => s + r.frames, 0) / runHistory.length / 60).toFixed(1);
+  }
+  // epoch 摘要
+  const etbody = document.getElementById('epoch-summary-tbody');
+  if (etbody) {
+    etbody.innerHTML = epochHistory.slice().reverse().map(e =>
+      `<tr>
+        <td>${e.epochId}</td><td>${e.strategy}</td><td>${e.epochSize}</td>
+        <td>${e.avgScore}</td><td>${e.bestScore}</td><td>${e.stdDev}</td>
+        <td>${(e.avgFrames / 60).toFixed(1)}s</td>
+      </tr>`
+    ).join('');
   }
 }
 
 function exportCSV() {
   if (runHistory.length === 0) return;
-  const headers = 'Run,Score,Level,Accuracy(%),Duration(s),Idle(%),Tracking(%),Firing(%),Evading(%),Dodging(%)';
+  const headers = 'Run,EpochId,Strategy,Score,Level,Accuracy(%),Duration(s),Idle(%),Tracking(%),Firing(%),Evading(%),Dodging(%)';
   const rows = runHistory.map(r => {
     const totalSF = Object.values(r.states).reduce((a, b) => a + b, 0) || 1;
     const pct = s => Math.round(s / totalSF * 100);
-    return [r.run, r.score, r.level, r.accuracy, (r.frames / 60).toFixed(1),
+    return [r.run, r.epochId ?? '', r.strategy ?? '', r.score, r.level, r.accuracy, (r.frames / 60).toFixed(1),
       pct(r.states.Idle), pct(r.states.Tracking), pct(r.states.Firing),
       pct(r.states.Evading), pct(r.states.Dodging)].join(',');
   });
@@ -757,6 +1037,7 @@ function drawHUD() {
     const hudColor = { Dodging:'#f44', Evading:'#f80', Firing:'#0f8', Tracking:'#ff8', Idle:'#88f' };
     lines.push(['', '']);
     lines.push([`AI ► ${aiDecisionState}`, hudColor[aiDecisionState] ?? '#fff']);
+    lines.push([`strategy  : ${AI_STRATEGIES[currentStrategy].name}`, '#aef']);
     lines.push([`safetyR   : ${aiParams.safetyRadius}`,    '#ccc']);
     lines.push([`aggression: ${aiParams.aggressionLevel}`, '#ccc']);
     lines.push([`aimTol    : ${aiParams.aimTolerance}`,    '#ccc']);
@@ -979,7 +1260,19 @@ document.getElementById('btn-back').addEventListener('click', () => {
   hideAiPanel(); state = 'menu';
 });
 document.getElementById('btn-start').addEventListener('click', () => {
-  hideAiPanel(); startGame('ai');
+  hideAiPanel();
+  if (epochSize > 1) {
+    startEpoch();
+  } else {
+    currentEpochId = null;
+    startGame('ai');
+  }
+});
+document.querySelectorAll('.strat-btn').forEach(b => {
+  b.addEventListener('click', () => setStrategy(b.dataset.strat));
+});
+document.querySelectorAll('.epoch-btn').forEach(b => {
+  b.addEventListener('click', () => setEpochSize(+b.dataset.epoch));
 });
 document.getElementById('btn-bm-close').addEventListener('click', () => {
   benchmarkVisible = false;
