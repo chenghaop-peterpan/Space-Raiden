@@ -822,7 +822,21 @@ function update() {
   if (invincible > 0) invincible--;
   if (shake > 0) shake--;
   dashGhosts = dashGhosts.filter(g => { g.life -= 0.12; return g.life > 0; });
-  document.getElementById('dash-hud').style.display = (dashConfig.enabled && dashCooldown === 0) ? '' : 'none';
+  const _dashEl = document.getElementById('dash-hud');
+  if (dashConfig.enabled) {
+    _dashEl.style.display = '';
+    if (dashCooldown === 0) {
+      _dashEl.textContent = '⚡ DASH';
+      _dashEl.style.color = '#0ff';
+      _dashEl.style.opacity = '1';
+    } else {
+      _dashEl.textContent = `⚡ ${(dashCooldown / 60).toFixed(1)}s`;
+      _dashEl.style.color = '#666';
+      _dashEl.style.opacity = '0.75';
+    }
+  } else {
+    _dashEl.style.display = 'none';
+  }
 
   // 升級
   level = 1 + Math.floor(score / 300);

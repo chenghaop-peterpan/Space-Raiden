@@ -356,3 +356,31 @@ def test_pause_stops_update(playing_page):
     frame2 = playing_page.evaluate("frameCount")
     assert frame1 == frame2
     _print(f"  [OK] frameCount frozen at {frame1}")
+
+
+def test_dash_hud_shows_cooldown(playing_page):
+    _print("\n[FUNCTIONAL TEST] Test: dash cooling down -> #dash-hud visible with countdown text")
+    result = playing_page.evaluate("""() => {
+        dashConfig.enabled = true;
+        dashCooldown = 60;
+        update();
+        const el = document.getElementById('dash-hud');
+        return { display: el.style.display, text: el.textContent };
+    }""")
+    assert result['display'] != 'none'
+    assert 's' in result['text']
+    _print(f"  [OK] display={result['display']!r}, text={result['text']!r}")
+
+
+def test_dash_hud_shows_ready(playing_page):
+    _print("\n[FUNCTIONAL TEST] Test: dash cooldown 0 -> #dash-hud shows DASH")
+    result = playing_page.evaluate("""() => {
+        dashConfig.enabled = true;
+        dashCooldown = 0;
+        update();
+        const el = document.getElementById('dash-hud');
+        return { display: el.style.display, text: el.textContent };
+    }""")
+    assert result['display'] != 'none'
+    assert 'DASH' in result['text']
+    _print(f"  [OK] display={result['display']!r}, text={result['text']!r}")
