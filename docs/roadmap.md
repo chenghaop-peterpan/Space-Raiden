@@ -25,6 +25,7 @@
 | v1.4.1 | CLAUDE.md Skills 提示補強：每次對話主動確認可用 /skill 指令 |
 | v1.5.0 | 可插拔 AI 策略架構（威脅迴避/強攻型/防守型）+ Epoch 批次執行系統 |
 | v1.5.1 | 安全距離視覺化（R 鍵）+ 預設 headless 測試 |
+| v1.6.0 | Dash 機制（Shift 鍵/AI 自動）+ 遊戲設定面板（dashConfig） |
 
 ---
 
