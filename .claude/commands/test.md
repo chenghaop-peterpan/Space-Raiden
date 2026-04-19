@@ -1,12 +1,12 @@
 ---
 description: Run the full test suite with pytest and report results.
-allowed-tools: Bash(.venv/Scripts/pytest.exe *)
+allowed-tools: Bash(CI=true .venv/Scripts/pytest.exe *)
 ---
 
-Run the full test suite:
+Run the full test suite in headless mode:
 
 ```
-.venv/Scripts/pytest.exe tests/ -v
+CI=true .venv/Scripts/pytest.exe tests/ -v
 ```
 
 Report the number of passed/failed tests. If any tests fail, show the failure details clearly.

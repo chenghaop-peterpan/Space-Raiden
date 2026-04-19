@@ -293,7 +293,7 @@
     <button id="btn-bm-export">↓ 匯出 CSV (E)</button>
   </div>
 </div>
-<div id="hint">方向鍵 / WASD 移動　　Space 發射雷射　　H：HUD　B：Benchmark　E：匯出 CSV</div>
+<div id="hint">方向鍵 / WASD 移動　　Space 發射雷射　　H：HUD　B：Benchmark　E：匯出 CSV　R：安全距離</div>
 
 <script>
 const canvas = document.getElementById('canvas');
@@ -479,7 +479,8 @@ let invincible = 0;      // 無敵幀數
 let shake = 0;           // 震動幀數
 
 // --- AI 研究追蹤 ---
-let hudVisible      = false;
+let hudVisible           = false;
+let safetyRadiusVisible  = false;
 let aiDecisionState = 'Idle';  // 'Idle' | 'Tracking' | 'Firing' | 'Evading' | 'Dodging'
 let shotsFired      = 0;
 let shotsHit        = 0;
@@ -542,6 +543,7 @@ document.addEventListener('keydown', e => {
     document.getElementById('epoch-hud').style.display = 'none';
   }
   if (e.code === 'KeyH') hudVisible = !hudVisible;
+  if (e.code === 'KeyR') safetyRadiusVisible = !safetyRadiusVisible;
   if (e.code === 'KeyB') {
     benchmarkVisible = !benchmarkVisible;
     document.getElementById('benchmark-panel').style.display = benchmarkVisible ? 'flex' : 'none';
@@ -1038,6 +1040,7 @@ function drawHUD() {
     lines.push(['', '']);
     lines.push([`AI ► ${aiDecisionState}`, hudColor[aiDecisionState] ?? '#fff']);
     lines.push([`strategy  : ${AI_STRATEGIES[currentStrategy].name}`, '#aef']);
+    lines.push([`safetyViz : ${safetyRadiusVisible ? 'ON (R)' : 'OFF (R)'}`, safetyRadiusVisible ? '#f88' : '#556']);
     lines.push([`safetyR   : ${aiParams.safetyRadius}`,    '#ccc']);
     lines.push([`aggression: ${aiParams.aggressionLevel}`, '#ccc']);
     lines.push([`aimTol    : ${aiParams.aimTolerance}`,    '#ccc']);
@@ -1163,6 +1166,32 @@ function draw() {
   // 玩家（閃爍效果）
   const blink = invincible > 0 && Math.floor(frameCount / 4) % 2 === 0;
   if (state !== 'dead') drawShuttle(player.x, player.y, blink);
+
+  // 安全距離視覺化
+  if (safetyRadiusVisible && gameMode === 'ai' && state !== 'dead') {
+    const stratMultipliers = { threat: 1.0, aggressive: 0.6, defensive: 1.5 };
+    const mult = stratMultipliers[currentStrategy] ?? 1.0;
+    const effectiveR = aiParams.safetyRadius * mult;
+    ctx.save();
+    ctx.setLineDash([5, 4]);
+    // 基礎安全距離（params 設定值）
+    ctx.strokeStyle = 'rgba(255, 80, 80, 0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, aiParams.safetyRadius, 0, Math.PI * 2);
+    ctx.stroke();
+    // 當前策略有效安全距離
+    if (Math.abs(mult - 1.0) > 0.01) {
+      ctx.strokeStyle = 'rgba(255, 60, 60, 0.9)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([6, 3]);
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, effectiveR, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
 
   // 開始畫面
   if (state === 'start') {
