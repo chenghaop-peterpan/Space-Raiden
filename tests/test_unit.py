@@ -282,3 +282,27 @@ def test_record_run_increments_run_number(playing_page):
     assert result["first"] == 1
     assert result["second"] == 2
     _print(f"  [OK] run numbers: {result['first']}, {result['second']}")
+
+
+# ── Dash ──────────────────────────────────────────────────────────────────────
+
+def test_dash_cooldown_decrements_each_frame(playing_page):
+    _print("\n[UNIT TEST] Test: dashCooldown decrements by 1 each update() call")
+    result = playing_page.evaluate("""() => {
+        dashCooldown = 10;
+        update();
+        return dashCooldown;
+    }""")
+    assert result == 9
+    _print(f"  [OK] dashCooldown 10 -> {result}")
+
+
+def test_dash_cooldown_clamps_at_zero(playing_page):
+    _print("\n[UNIT TEST] Test: dashCooldown does not go below 0")
+    result = playing_page.evaluate("""() => {
+        dashCooldown = 0;
+        update();
+        return dashCooldown;
+    }""")
+    assert result == 0
+    _print(f"  [OK] dashCooldown stays at {result}")
