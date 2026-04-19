@@ -59,6 +59,10 @@ CI=true .venv/Scripts/pytest.exe tests/ -v
    - 新增 changelog/vX.Y.Z.md（主題 / 新增 / 修改 / 修復 / 測試）
    - 更新 changelog/SUMMARY.md：新版本插入表格最上方（新的在上）
 
+4b. 更新文件（新功能必做）
+    - 若新增/修改了使用者可見功能（操控方式、遊戲機制、模式）：更新 README.md
+    - 若新增/修改了 API、資料結構或狀態機：更新 docs/spec.md
+
 5. Commit & Push
    git add <files>
    git commit -m "feat(vX.Y.Z): ..."
