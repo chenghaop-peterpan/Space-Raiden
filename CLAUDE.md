@@ -3,6 +3,7 @@
 ## 每次對話開始前
 
 先讀 `docs/roadmap.md`，確認當前進度與待辦事項。
+確認本頁「可用 Slash Commands」section，視情況主動提示 user 可使用哪些 /skill 指令。
 
 ---
 
