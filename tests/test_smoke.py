@@ -174,20 +174,23 @@ def test_benchmark_panel_initially_hidden(game_page):
     assert not game_page.locator("#benchmark-panel").is_visible()
 
 
-def test_b_key_shows_benchmark_panel(game_page):
-    game_page.keyboard.press("b")
-    assert game_page.locator("#benchmark-panel").is_visible()
+def test_ctrl_panel_initially_hidden(game_page):
+    assert not game_page.locator("#ctrl-panel").is_visible()
 
 
-def test_b_key_toggles_benchmark_panel(game_page):
-    game_page.keyboard.press("b")
+def test_benchmark_panel_shows_via_js(game_page):
+    game_page.evaluate("""() => {
+        benchmarkVisible = true;
+        document.getElementById('benchmark-panel').style.display = 'flex';
+    }""")
     assert game_page.locator("#benchmark-panel").is_visible()
-    game_page.keyboard.press("b")
-    assert not game_page.locator("#benchmark-panel").is_visible()
 
 
 def test_benchmark_close_button_hides_panel(game_page):
-    game_page.keyboard.press("b")
+    game_page.evaluate("""() => {
+        benchmarkVisible = true;
+        document.getElementById('benchmark-panel').style.display = 'flex';
+    }""")
     assert game_page.locator("#benchmark-panel").is_visible()
     game_page.locator("#btn-bm-close").click()
     assert not game_page.locator("#benchmark-panel").is_visible()

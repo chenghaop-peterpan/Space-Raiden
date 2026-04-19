@@ -236,9 +236,9 @@ executeCommand({ dash: true })
 | `'Evading'` | 威脅在安全距離內，側向閃躲 | 橘 `#f80` |
 | `'Dodging'` | 威脅極近，緊急規避 | 紅 `#f44` |
 
-### Debug HUD（H 鍵）
+### Debug HUD
 
-按 `H` 鍵開關 Canvas 疊加儀表板，顯示：
+Canvas 疊加儀表板（透過設定面板 → 視覺化 tab 開關），顯示：
 - 遊戲模式、狀態、幀數
 - 雷射命中率（hits / fired）
 - AI 決策狀態燈號（僅 AI 模式）
@@ -246,9 +246,9 @@ executeCommand({ dash: true })
 - `safetyViz: ON/OFF`（安全距離視覺化狀態）
 - `dash CD  : Nfr / READY`（Dash 冷卻狀態）
 
-### 安全距離視覺化（R 鍵）
+### 安全距離視覺化
 
-AI 模式下按 `R` 鍵顯示/隱藏紅色虛線圓圈：
+透過設定面板 → 視覺化 tab 開關，顯示/隱藏紅色虛線圓圈：
 - **淡紅色外圈**：`aiParams.safetyRadius`（基礎安全距離）
 - **亮紅色內圈**：當前策略有效半徑（aggressive × 0.6，defensive × 1.5）
 
@@ -316,15 +316,15 @@ let epochConfig = {
 | 功能 | 觸發 | 說明 |
 |------|------|------|
 | **Canvas 趨勢圖** | 自動（gameover 畫面） | 最近 10 場分數長條圖，當場用青色高亮 |
-| **HTML 歷史表格** | `B` 鍵切換 | 浮層面板，顯示全部場次詳細數據 |
-| **CSV 匯出** | `E` 鍵 / 面板按鈕 | 下載 `benchmark.csv` |
+| **HTML 歷史表格** | 設定面板 → Log tab | 浮層面板，顯示全部場次詳細數據 |
+| **CSV 匯出** | 設定面板 → Log tab 按鈕 | 下載 `benchmark.csv` |
 
 ### HTML 面板（`#benchmark-panel`）
 
 - 摘要列：場次數、平均分數、最高分數
 - 表格欄位：`#`、分數、等級、命中率、時長、策略、Idle/Track/Fire/Evade/Dodge（%）
 - 最新一場以黃色 `#ff8` 標示
-- `B` 鍵 / 「✕ 關閉」按鈕可關閉
+- 「✕ 關閉」按鈕可關閉
 
 ### CSV 格式
 
@@ -333,6 +333,112 @@ Run,Score,Level,Accuracy(%),Duration(s),Strategy,Idle(%),Tracking(%),Firing(%),E
 1,342,2,65,15.2,威脅迴避,20,35,18,22,5
 ...
 ```
+
+---
+
+## 統一設定面板（`#ctrl-panel`）
+
+### 開關方式
+
+| 操作 | 效果 |
+|------|------|
+| `H` 鍵（遊戲中） | 開啟面板，自動暫停遊戲（`state = 'paused'`，`_ctrlPanelPaused = true`） |
+| `H` 鍵再按 / `ESC` / ✕ 按鈕 | 關閉面板，恢復遊戲（`state = 'playing'`，`_ctrlPanelPaused = false`） |
+
+### 三個 Tab
+
+#### AI 參數 tab
+即時調整 `aiParams` 所有欄位（安全距離、瞄準容差、攻擊性、預測幀數、反應延遲），滑桿變更立即生效，並同步原有 `#ai-panel` 顯示值。支援策略切換（威脅迴避 / 強攻型 / 防守型）。
+
+#### 視覺化 tab
+- **Debug HUD**：開啟/關閉 Canvas 疊加儀表板（`hudVisible`）
+- **安全距離圓**：開啟/關閉紅色虛線圓圈（`safetyRadiusVisible`）
+- **AI Terminal**：開啟/關閉右側 AI 決策捲動終端（`aiTermVisible`）
+
+#### Log tab
+- **Input Log**：開啟/關閉逐幀按鍵記錄面板（`inputLogVisible`）
+- **Benchmark**：開啟/關閉 Benchmark 歷史表格面板（`benchmarkVisible`）
+- 匯出 Benchmark CSV / 匯出 Input Log CSV 按鈕
+
+### 相關變數
+
+| 變數 | 型別 | 說明 |
+|------|------|------|
+| `ctrlPanelVisible` | boolean | 面板是否可見 |
+| `ctrlPanelTab` | `'ai'｜'visual'｜'log'` | 目前選中的 tab |
+| `_ctrlPanelPaused` | boolean | 是否由開面板觸發的暫停（關閉時自動恢復） |
+
+---
+
+## Input Log
+
+### 資料結構
+
+每幀於 `update()` 末尾自動 append 至 `inputLog[]`：
+
+```javascript
+{
+  frame:  number,    // 幀號
+  keys:   string,    // 按鍵字串（↑↓←→ 組合，無按鍵為 '-'）
+  x:      number,    // 玩家 X（整數）
+  y:      number,    // 玩家 Y（整數）
+  dx:     number,    // 本幀 X 位移（1 位小數）
+  dy:     number,    // 本幀 Y 位移（1 位小數）
+  dist:   number,    // 本幀位移距離（1 位小數）
+  event:  string,    // 'DASH' | 'LASER' | 'HIT' | ''
+}
+```
+
+- 上限 7200 筆（超過則移除最舊一筆，約 2 分鐘 @ 60fps）
+- `startGame()` 時重置為空陣列
+
+### 事件標記來源
+
+| 事件 | 觸發位置 |
+|------|---------|
+| `'DASH'` | `fireDash()` 末尾 |
+| `'LASER'` | `fireLaser()` 末尾（若同幀已有 DASH 則不覆蓋） |
+| `'HIT'` | 碰撞 `lives--` 後 |
+
+### HTML 面板（`#input-log-panel`）
+
+顯示最近 200 筆，欄位：幀 / 按鍵 / X / Y / dX / dY / 距離 / 事件。事件非空時以黃色 `#ff8` 標示。摘要列顯示總幀數、DASH/LASER/HIT 次數。
+
+### CSV 匯出（`exportInputLogCSV()`）
+
+下載 `input_log.csv`，包含完整 `inputLog[]` 所有欄位。
+
+---
+
+## AI Terminal（`#ai-terminal`）
+
+### 佈局
+
+與 canvas 並排於 `#canvas-row` flex 容器中（canvas 左、terminal 右，`display:none` 預設隱藏）。尺寸 220 × 640px。
+
+### 格式
+
+每幀由 `aiUpdate()` 末尾 append 一行（最多保留 300 筆，DOM 最多渲染 80 行）：
+
+```
+FRAME  DECISION  CMD  d:DIST
+ 1234  Evading   ←↑💥  d:95
+```
+
+- `FRAME`：5 位幀號
+- `DECISION`：決策狀態（8 字元 padEnd）
+- `CMD`：按鍵圖示（←→↑↓ + 💥射擊 + ⚡Dash）
+- `d:DIST`：到最近隕石的距離（整數 px）
+
+### 顏色編碼
+
+| 狀態 | 顏色 |
+|------|------|
+| Idle | 藍 `#44f` |
+| Tracking | 黃 `#ff8` |
+| Firing | 綠 `#0f8` |
+| Evading | 橘 `#f80` |
+| Dodging | 紅 `#f44` |
 
 ---
 
