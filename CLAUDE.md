@@ -16,11 +16,11 @@
 ## 測試執行
 
 ```bash
-.venv/Scripts/pytest.exe tests/ -v
+CI=true .venv/Scripts/pytest.exe tests/ -v
 ```
 
 不是 `pytest`，不是 `python -m pytest`。
-本機：headed（有瀏覽器視窗）。CI（GitHub Actions）：headless（由 `CI` 環境變數自動切換）。
+本機與 CI 均使用 headless 模式（`CI=true`）。
 
 ---
 
