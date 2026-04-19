@@ -21,6 +21,7 @@
 | v1.3.5 | CI paths filter + 備忘錄同步 |
 | v1.3.6 | CLAUDE.md 語言規則：只使用繁體中文或英文回覆 |
 | v1.3.7 | Bugfix：結算/選單畫面 shake 殘留 + UX regression 測試 |
+| v1.4.1 | CLAUDE.md Skills 提示補強：每次對話主動確認可用 /skill 指令 |
 | v1.4.0 | Skills + MCP 基礎建設：/new-version、/test、/release、GitHub MCP |
 
 ---
