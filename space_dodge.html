@@ -395,10 +395,11 @@ const ctx = canvas.getContext('2d');
 const W = canvas.width, H = canvas.height;
 
 // --- 狀態 ---
-let state = 'start'; // start | menu | ai_params | playing | dead | gameover
+let state = 'start'; // start | menu | ai_params | game_settings | playing | paused | dead | gameover
 let score = 0, lives = 3, level = 1;
 let gameMode  = 'player';   // 'player' | 'ai'
 let menuIndex = 0;          // 0=玩家模式, 1=AI模式
+let pauseMenuIndex = 0;     // 0=繼續遊戲, 1=返回選單
 let aiParams = {
   reactionDelay:   250,
   safetyRadius:     80,
@@ -635,15 +636,21 @@ document.addEventListener('keydown', e => {
   if (e.code === 'Space') {
     e.preventDefault();
     if (state === 'playing')                      fireLaser();
+    else if (state === 'paused')                  confirmPause();
     else if (state === 'start' || state === 'gameover') { currentEpochId = null; epochCurrent = 0; document.getElementById('epoch-hud').style.display = 'none'; state = 'menu'; shake = 0; }
     else if (state === 'menu')                    confirmMenu();
   }
   if (e.code === 'Enter') {
     if      (state === 'start' || state === 'gameover') { currentEpochId = null; epochCurrent = 0; document.getElementById('epoch-hud').style.display = 'none'; state = 'menu'; shake = 0; }
     else if (state === 'menu')                          confirmMenu();
+    else if (state === 'paused')                        confirmPause();
   }
   if ((e.code === 'ArrowUp' || e.code === 'ArrowDown') && state === 'menu') {
     menuIndex = (menuIndex + (e.code === 'ArrowDown' ? 1 : -1) + 3) % 3;
+    e.preventDefault();
+  }
+  if ((e.code === 'ArrowUp' || e.code === 'ArrowDown') && state === 'paused') {
+    pauseMenuIndex = (pauseMenuIndex + (e.code === 'ArrowDown' ? 1 : -1) + 2) % 2;
     e.preventDefault();
   }
   if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && state === 'playing' && gameMode === 'player') {
@@ -655,7 +662,12 @@ document.addEventListener('keydown', e => {
   if (e.code === 'Escape' && state === 'game_settings') {
     hideSettingsPanel(); state = 'menu'; shake = 0;
   }
-  if (e.code === 'Escape' && (state === 'playing' || state === 'gameover')) {
+  if (e.code === 'Escape' && state === 'playing') {
+    state = 'paused'; pauseMenuIndex = 0;
+  } else if (e.code === 'Escape' && state === 'paused') {
+    state = 'playing';
+  }
+  if (e.code === 'Escape' && state === 'gameover') {
     currentEpochId = null; epochCurrent = 0;
     document.getElementById('epoch-hud').style.display = 'none';
   }
@@ -1214,6 +1226,44 @@ function drawHUD() {
   ctx.restore();
 }
 
+// --- 暫停選單 ---
+function confirmPause() {
+  if (pauseMenuIndex === 0) {
+    state = 'playing';
+  } else {
+    currentEpochId = null; epochCurrent = 0;
+    document.getElementById('epoch-hud').style.display = 'none';
+    state = 'menu'; shake = 0;
+  }
+}
+function drawPauseMenu() {
+  ctx.fillStyle = 'rgba(0,0,16,0.75)';
+  ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 28px Courier New';
+  ctx.fillStyle = '#ff8';
+  ctx.shadowColor = '#ff8';
+  ctx.shadowBlur = 20;
+  ctx.fillText('⏸ 暫停', W/2, H/2 - 80);
+  ctx.shadowBlur = 0;
+  const options = ['繼續遊戲', '返回選單'];
+  options.forEach((opt, i) => {
+    const cy = H/2 - 20 + i * 60;
+    const sel = pauseMenuIndex === i;
+    ctx.strokeStyle = sel ? '#0ff' : '#224';
+    ctx.lineWidth = sel ? 2 : 1;
+    if (sel) { ctx.shadowColor = '#0ff'; ctx.shadowBlur = 14; }
+    ctx.strokeRect(W/2 - 100, cy - 24, 200, 46);
+    ctx.shadowBlur = 0;
+    ctx.font = (sel ? 'bold ' : '') + '18px Courier New';
+    ctx.fillStyle = sel ? '#0ff' : '#446';
+    ctx.fillText(opt, W/2, cy + 6);
+  });
+  ctx.font = '13px Courier New';
+  ctx.fillStyle = '#445';
+  ctx.fillText('↑↓ 切換　　Space / Enter 確認　　Esc 繼續', W/2, H/2 + 120);
+}
+
 // --- 模式選單 ---
 function drawModeMenu() {
   ctx.fillStyle = 'rgba(0,0,16,0.78)';
@@ -1404,6 +1454,9 @@ function draw() {
 
   // 模式選單
   if (state === 'menu') drawModeMenu();
+
+  // 暫停選單
+  if (state === 'paused') drawPauseMenu();
 
   // Debug HUD（最上層）
   drawHUD();

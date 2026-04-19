@@ -23,6 +23,7 @@
 | 方向鍵 / WASD | 移動太空梭 |
 | Space / Enter | 發射雷射 / 確認選單 |
 | Shift | Dash（瞬間向上位移 56px，有冷卻時間） |
+| Esc | 暫停遊戲 / 繼續遊戲（遊戲中按下呼出暫停選單） |
 | H | Debug HUD 開關（顯示 AI 決策狀態、命中率等） |
 | B | Benchmark 面板開關（歷史場次表格） |
 | E | 匯出 Benchmark CSV |

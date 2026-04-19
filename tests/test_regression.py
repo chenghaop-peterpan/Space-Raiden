@@ -124,3 +124,12 @@ def test_shake_resets_on_menu(playing_page):
     assert result["state"] == "menu"
     assert result["shake"] == 0
     _print(f"  [OK] state={result['state']}, shake={result['shake']} (shake cleared on menu entry)")
+
+
+def test_ai_mode_pause_on_esc(playing_page):
+    _print("\n[REGRESSION TEST] Test: AI mode ESC -> state becomes 'paused'")
+    playing_page.evaluate("() => startGame('ai')")
+    playing_page.keyboard.press("Escape")
+    result = playing_page.evaluate("state")
+    assert result == "paused"
+    _print(f"  [OK] AI mode state={result}")

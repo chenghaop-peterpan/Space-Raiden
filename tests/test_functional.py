@@ -329,3 +329,30 @@ def test_execute_command_combined_move_and_shoot(playing_page):
     assert result["moved"] is True
     assert result["fired"] is True
     _print(f"  [OK] moved={result['moved']}, fired={result['fired']}")
+
+
+def test_pause_on_esc(playing_page):
+    _print("\n[FUNCTIONAL TEST] Test: ESC during playing -> state becomes 'paused'")
+    playing_page.keyboard.press("Escape")
+    result = playing_page.evaluate("state")
+    assert result == "paused"
+    _print(f"  [OK] state={result}")
+
+
+def test_resume_from_pause_esc(playing_page):
+    _print("\n[FUNCTIONAL TEST] Test: ESC during paused -> state returns to 'playing'")
+    playing_page.keyboard.press("Escape")
+    playing_page.keyboard.press("Escape")
+    result = playing_page.evaluate("state")
+    assert result == "playing"
+    _print(f"  [OK] state={result}")
+
+
+def test_pause_stops_update(playing_page):
+    _print("\n[FUNCTIONAL TEST] Test: paused state -> frameCount does not increase")
+    playing_page.keyboard.press("Escape")
+    frame1 = playing_page.evaluate("frameCount")
+    playing_page.wait_for_timeout(300)
+    frame2 = playing_page.evaluate("frameCount")
+    assert frame1 == frame2
+    _print(f"  [OK] frameCount frozen at {frame1}")
