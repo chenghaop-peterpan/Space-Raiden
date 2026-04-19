@@ -27,6 +27,7 @@
 | v1.5.1 | 安全距離視覺化（R 鍵）+ 預設 headless 測試 |
 | v1.6.0 | Dash 機制（Shift 鍵/AI 自動）+ 遊戲設定面板（dashConfig） |
 | v1.6.1 | 文件補齊：README + spec.md 更新至 v1.6.0；CLAUDE.md 新增文件維護規則 |
+| v1.7.0 | ESC 暫停機制：遊戲中按 ESC 凍結畫面並疊加暫停選單（繼續 / 返回選單） |
 
 ---
 
