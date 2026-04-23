@@ -358,3 +358,63 @@ def test_pause_stops_update(playing_page):
     _print(f"  [OK] frameCount frozen at {frame1}")
 
 
+# ── Ctrl Panel (H key) ────────────────────────────────────────────────────────
+
+def test_ctrl_panel_opens_on_h(playing_page):
+    _print("\n[FUNCTIONAL TEST] Test: H key during playing -> ctrlPanelVisible=true, state='paused'")
+    playing_page.keyboard.press("KeyH")
+    result = playing_page.evaluate("() => ({ visible: ctrlPanelVisible, state })")
+    assert result["visible"] is True
+    assert result["state"] == "paused"
+    _print(f"  [OK] ctrlPanelVisible={result['visible']}, state={result['state']}")
+
+
+def test_ctrl_panel_closes_on_h_again(playing_page):
+    _print("\n[FUNCTIONAL TEST] Test: H twice -> ctrlPanelVisible=false, state='playing'")
+    playing_page.keyboard.press("KeyH")
+    playing_page.keyboard.press("KeyH")
+    result = playing_page.evaluate("() => ({ visible: ctrlPanelVisible, state })")
+    assert result["visible"] is False
+    assert result["state"] == "playing"
+    _print(f"  [OK] ctrlPanelVisible={result['visible']}, state={result['state']}")
+
+
+# ── Input Log ─────────────────────────────────────────────────────────────────
+
+def test_input_log_records_per_frame(playing_page):
+    _print("\n[FUNCTIONAL TEST] Test: update() N times -> inputLog.length increases by N")
+    result = playing_page.evaluate("""() => {
+        inputLog = [];
+        update(); update(); update();
+        return inputLog.length;
+    }""")
+    assert result == 3
+    _print(f"  [OK] inputLog.length={result}")
+
+
+def test_input_log_dash_event(playing_page):
+    _print("\n[FUNCTIONAL TEST] Test: fireDash() -> latest inputLog entry event === 'DASH'")
+    result = playing_page.evaluate("""() => {
+        inputLog = [];
+        dashCooldown = 0;
+        fireDash();
+        update();
+        return inputLog[inputLog.length - 1].event;
+    }""")
+    assert result == "DASH"
+    _print(f"  [OK] event='{result}'")
+
+
+def test_input_log_hit_event(playing_page):
+    _print("\n[FUNCTIONAL TEST] Test: asteroid collision -> latest inputLog entry event === 'HIT'")
+    result = playing_page.evaluate("""() => {
+        inputLog = [];
+        invincible = 0;
+        asteroids = [{ x: player.x, y: player.y, r: 20, hp: 1, vx: 0, vy: 0 }];
+        update();
+        return inputLog[inputLog.length - 1].event;
+    }""")
+    assert result == "HIT"
+    _print(f"  [OK] event='{result}'")
+
+
