@@ -4,6 +4,7 @@
 
 | 版本 | 日期 | 主題 |
 |------|------|------|
+| [v2.0.0](v2.0.0.md) | 2026-04-23 | 軌跡預測型 AI 策略：落點 X 計算，提前側移，本質不同於反應式邏輯 |
 | [v1.9.0](v1.9.0.md) | 2026-04-23 | localStorage 持久化：runHistory / epochHistory / inputLog 跨 session 保存 |
 | [v1.8.0](v1.8.0.md) | 2026-04-19 | 統一設定面板（H鍵）+ Input Log + AI Terminal，移除 H/R/B/E 快捷鍵 |
 | [v1.7.2](v1.7.2.md) | 2026-04-19 | 測試重構：移除低 priority DOM UI 測試，補 dashCooldown unit test |
