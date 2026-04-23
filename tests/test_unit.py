@@ -422,3 +422,50 @@ def test_clear_storage_resets_all(playing_page):
     assert result["inputlogKey"] is None
     assert result["runHistoryLen"] == 0
     _print(f"  [OK] all sr_* keys cleared, runHistory.length={result['runHistoryLen']}")
+
+
+def test_compare_mode_variables_initialized(playing_page):
+    _print("\n[UNIT TEST] Test: compareMode/comparePhase/compareRunsA/B initial values")
+    result = playing_page.evaluate("""() => ({
+        compareMode,
+        comparePhase,
+        runsA: compareRunsA.length,
+        runsB: compareRunsB.length,
+    })""")
+    assert result["compareMode"] is False
+    assert result["comparePhase"] == 0
+    assert result["runsA"] == 0
+    assert result["runsB"] == 0
+    _print(f"  [OK] compareMode={result['compareMode']}, phase={result['comparePhase']}")
+
+
+def test_compare_calc_avg_score(playing_page):
+    _print("\n[UNIT TEST] Test: avg score calculation for compare result")
+    result = playing_page.evaluate("""() => {
+        const runs = [
+            {score:100, frames:600, accuracy:70},
+            {score:200, frames:900, accuracy:80}
+        ];
+        const sc = runs.map(r => r.score);
+        return Math.round(sc.reduce((a, b) => a + b, 0) / sc.length);
+    }""")
+    assert result == 150
+    _print(f"  [OK] avg score = {result}")
+
+
+def test_compare_winner_determination(playing_page):
+    _print("\n[UNIT TEST] Test: compare panel winner logic (higher avg = green)")
+    result = playing_page.evaluate("""() => {
+        compareRunsA = [{score:300, frames:1000, accuracy:80}];
+        compareRunsB = [{score:150, frames:600,  accuracy:60}];
+        compareStratA = 'threat';
+        compareStratB = 'trajectory';
+        renderComparePanel();
+        const elA = document.getElementById('cmp-a-avg');
+        const elB = document.getElementById('cmp-b-avg');
+        return { colorA: elA.style.color, colorB: elB.style.color };
+    }""")
+    # A wins (300 > 150), A should be green (#4f4), B should be red (#f66)
+    assert result["colorA"] == "rgb(68, 255, 68)"
+    assert result["colorB"] == "rgb(255, 102, 102)"
+    _print(f"  [OK] A=green ({result['colorA']}), B=red ({result['colorB']})")

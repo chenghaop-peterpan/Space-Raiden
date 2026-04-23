@@ -481,6 +481,63 @@
     <button id="btn-bm-export">↓ 匯出 CSV</button>
   </div>
 </div>
+<div id="compare-panel" style="display:none; position:fixed; top:60px; left:50%;
+  transform:translateX(-50%); width:420px; background:#111; border:1px solid #444;
+  border-radius:8px; padding:16px; z-index:102; color:#ccc; font-family:monospace;">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+    <span style="font-size:14px; font-weight:bold;">⚔ 策略對比</span>
+    <button onclick="document.getElementById('compare-panel').style.display='none'"
+      style="background:none;border:none;color:#aaa;font-size:16px;cursor:pointer;">✕</button>
+  </div>
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
+    <div>
+      <label style="font-size:11px; color:#888; display:block; margin-bottom:3px;">策略 A</label>
+      <select id="cmp-strat-a" style="width:100%; background:#222; color:#ccc; border:1px solid #444; border-radius:4px; padding:4px;">
+        <option value="threat">威脅迴避</option>
+        <option value="aggressive">強攻型</option>
+        <option value="defensive">防守型</option>
+        <option value="trajectory" selected>軌跡預測</option>
+      </select>
+    </div>
+    <div>
+      <label style="font-size:11px; color:#888; display:block; margin-bottom:3px;">策略 B</label>
+      <select id="cmp-strat-b" style="width:100%; background:#222; color:#ccc; border:1px solid #444; border-radius:4px; padding:4px;">
+        <option value="threat" selected>威脅迴避</option>
+        <option value="aggressive">強攻型</option>
+        <option value="defensive">防守型</option>
+        <option value="trajectory">軌跡預測</option>
+      </select>
+    </div>
+  </div>
+  <div style="margin-bottom:10px;">
+    <label style="font-size:11px; color:#888;">每策略局數</label>
+    <input id="cmp-games" type="number" value="5" min="1" max="20"
+      style="width:60px; background:#222; color:#ccc; border:1px solid #444; border-radius:4px; padding:4px; margin-left:8px;">
+  </div>
+  <button onclick="startCompare()"
+    style="width:100%; padding:6px; background:#1a3a1a; color:#4f4; border:1px solid #4a4; border-radius:4px; cursor:pointer; font-size:13px;">
+    ▶ 開始對比
+  </button>
+  <div id="cmp-status" style="margin-top:8px; font-size:11px; color:#888; min-height:16px;"></div>
+  <div id="cmp-result" style="display:none; margin-top:12px;">
+    <table style="width:100%; border-collapse:collapse; font-size:12px;">
+      <thead>
+        <tr style="border-bottom:1px solid #444;">
+          <th style="text-align:left; padding:4px; color:#888;">指標</th>
+          <th id="cmp-th-a" style="text-align:center; padding:4px;"></th>
+          <th id="cmp-th-b" style="text-align:center; padding:4px;"></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td style="padding:3px 4px; color:#aaa;">平均分</td><td id="cmp-a-avg" style="text-align:center;"></td><td id="cmp-b-avg" style="text-align:center;"></td></tr>
+        <tr><td style="padding:3px 4px; color:#aaa;">最高分</td><td id="cmp-a-best" style="text-align:center;"></td><td id="cmp-b-best" style="text-align:center;"></td></tr>
+        <tr><td style="padding:3px 4px; color:#aaa;">標準差</td><td id="cmp-a-std" style="text-align:center;"></td><td id="cmp-b-std" style="text-align:center;"></td></tr>
+        <tr><td style="padding:3px 4px; color:#aaa;">均存活</td><td id="cmp-a-time" style="text-align:center;"></td><td id="cmp-b-time" style="text-align:center;"></td></tr>
+        <tr><td style="padding:3px 4px; color:#aaa;">命中率</td><td id="cmp-a-acc" style="text-align:center;"></td><td id="cmp-b-acc" style="text-align:center;"></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
 <div id="ctrl-panel">
   <div id="ctrl-header">
     <span>⚙ 設定</span>
@@ -557,6 +614,9 @@
     </div>
     <div class="param-row">
       <button class="toggle-btn" id="btn-clear-storage" style="flex:1;border-color:#f44;color:#f44;">✕ 清除本地儲存</button>
+    </div>
+    <div class="param-row">
+      <button class="toggle-btn" id="btn-open-compare" style="flex:1;border-color:#4a4;color:#4f4;">⚔ 策略對比</button>
     </div>
   </div>
 </div>
@@ -859,6 +919,14 @@ let shotsHit        = 0;
 let runHistory       = [];
 let stateFrameCounts = { Idle:0, Tracking:0, Firing:0, Evading:0, Dodging:0 };
 let benchmarkVisible = false;
+
+// --- 策略對比模式 ---
+let compareMode   = false;
+let comparePhase  = 0;          // 0=idle 1=runningA 2=runningB 3=done
+let compareStratA = 'threat';
+let compareStratB = 'trajectory';
+let compareRunsA  = [];
+let compareRunsB  = [];
 
 // --- 設定面板 ---
 let ctrlPanelVisible  = false;
@@ -1336,6 +1404,13 @@ function recordRun() {
   runHistory.push(entry);
   if (currentEpochId !== null) epochRunsBuffer.push(entry);
   _saveRuns(); _saveInputLog(); updateStorageInfo();
+  if (compareMode) {
+    const done = comparePhase === 1 ? compareRunsA.length + 1 : compareRunsB.length + 1;
+    const strat = comparePhase === 1 ? compareStratA : compareStratB;
+    const phase = comparePhase === 1 ? 'A' : 'B';
+    document.getElementById('cmp-status').textContent =
+      `策略 ${phase}（${AI_STRATEGIES[strat].name}）進行中… ${done}/${epochSize}`;
+  }
   renderBenchmarkPanel();
   if (gameMode === 'ai' && epochSize > 1 && currentEpochId !== null) advanceEpoch();
 }
@@ -1348,6 +1423,53 @@ function setStrategy(name) {
 function setEpochSize(n) {
   epochSize = n;
   document.querySelectorAll('.epoch-btn').forEach(b => b.classList.toggle('active', +b.dataset.epoch === n));
+}
+
+function startCompare() {
+  compareStratA = document.getElementById('cmp-strat-a').value;
+  compareStratB = document.getElementById('cmp-strat-b').value;
+  const n = Math.max(1, Math.min(20, parseInt(document.getElementById('cmp-games').value) || 5));
+  compareMode  = true;
+  comparePhase = 1;
+  compareRunsA = [];
+  compareRunsB = [];
+  epochSize    = n;
+  document.getElementById('cmp-result').style.display = 'none';
+  document.getElementById('cmp-status').textContent =
+    `策略 A（${AI_STRATEGIES[compareStratA].name}）進行中… 0/${n}`;
+  setStrategy(compareStratA);
+  startEpoch();
+}
+
+function renderComparePanel() {
+  const calc = runs => {
+    const sc = runs.map(r => r.score);
+    const fr = runs.map(r => r.frames);
+    const ac = runs.map(r => r.accuracy);
+    return {
+      avg:  Math.round(sc.reduce((a, b) => a + b, 0) / sc.length),
+      best: Math.max(...sc),
+      std:  calcStdDev(sc),
+      time: (fr.reduce((a, b) => a + b, 0) / fr.length / 60).toFixed(1) + 's',
+      acc:  Math.round(ac.reduce((a, b) => a + b, 0) / ac.length) + '%',
+    };
+  };
+  const a = calc(compareRunsA), b = calc(compareRunsB);
+  document.getElementById('cmp-th-a').textContent = AI_STRATEGIES[compareStratA].name;
+  document.getElementById('cmp-th-b').textContent = AI_STRATEGIES[compareStratB].name;
+  [['avg', false], ['best', false], ['std', true], ['time', false], ['acc', false]].forEach(([k, lowWins]) => {
+    const elA = document.getElementById(`cmp-a-${k}`);
+    const elB = document.getElementById(`cmp-b-${k}`);
+    elA.textContent = a[k];
+    elB.textContent = b[k];
+    const vA = parseFloat(a[k]), vB = parseFloat(b[k]);
+    const aWins = lowWins ? vA < vB : vA > vB;
+    const bWins = lowWins ? vB < vA : vB > vA;
+    elA.style.color = aWins ? '#4f4' : (bWins ? '#f66' : '');
+    elB.style.color = bWins ? '#4f4' : (aWins ? '#f66' : '');
+  });
+  document.getElementById('cmp-status').textContent = `對比完成（各 ${compareRunsA.length} 局）`;
+  document.getElementById('cmp-result').style.display = 'block';
 }
 
 function startEpoch() {
@@ -1392,6 +1514,26 @@ function finalizeEpoch() {
   currentEpochId = null;
   epochCurrent   = 0;
   document.getElementById('epoch-hud').style.display = 'none';
+
+  if (compareMode) {
+    if (comparePhase === 1) {
+      compareRunsA = [...epochRunsBuffer];
+      comparePhase = 2;
+      document.getElementById('cmp-status').textContent =
+        `策略 B（${AI_STRATEGIES[compareStratB].name}）進行中… 0/${compareRunsA.length}`;
+      setStrategy(compareStratB);
+      setTimeout(() => startEpoch(), 800);
+    } else if (comparePhase === 2) {
+      compareRunsB = [...epochRunsBuffer];
+      comparePhase = 3;
+      compareMode  = false;
+      renderBenchmarkPanel();
+      renderComparePanel();
+      document.getElementById('compare-panel').style.display = 'block';
+    }
+    return;
+  }
+
   renderBenchmarkPanel();
   benchmarkVisible = true;
   document.getElementById('benchmark-panel').style.display = 'flex';
@@ -1999,6 +2141,9 @@ document.getElementById('btn-export-inputlog').addEventListener('click', exportI
 // Input Log Panel 按鈕
 document.getElementById('btn-clear-storage').addEventListener('click', () => {
   if (confirm('確認清除所有本地儲存資料（runHistory / epochHistory / inputLog）？')) clearStorage();
+});
+document.getElementById('btn-open-compare').addEventListener('click', () => {
+  document.getElementById('compare-panel').style.display = 'block';
 });
 document.getElementById('btn-il-close').addEventListener('click', () => {
   inputLogVisible = false;

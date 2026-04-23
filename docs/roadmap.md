@@ -33,6 +33,7 @@
 | v1.8.0 | 統一設定面板（H鍵）+ Input Log + AI Terminal，移除 H/R/B/E 快捷鍵 |
 | v1.9.0 | localStorage 持久化：runHistory / epochHistory / inputLog 跨 session 保存 |
 | v2.0.0 | 軌跡預測型 AI 策略（第四種）：計算落點 X 提前閃避 |
+| v2.1.0 | 策略對比模式：兩種 AI 各跑 N 局，並排比較 5 項指標（均分/最高/標準差/存活/命中率） |
 
 ---
 
