@@ -390,6 +390,7 @@
       <button class="strat-btn active" data-strat="threat">威脅迴避</button>
       <button class="strat-btn" data-strat="aggressive">強攻型</button>
       <button class="strat-btn" data-strat="defensive">防守型</button>
+      <button class="strat-btn" data-strat="trajectory">軌跡預測</button>
     </div>
   </div>
   <div class="param-row">
@@ -498,6 +499,7 @@
         <button class="strat-btn active" id="ctrl-strat-threat">威脅迴避</button>
         <button class="strat-btn" id="ctrl-strat-aggressive">強攻型</button>
         <button class="strat-btn" id="ctrl-strat-defensive">防守型</button>
+        <button class="strat-btn" id="ctrl-strat-trajectory">軌跡預測</button>
       </div>
     </div>
     <div class="param-row"><span class="param-label">安全距離</span>
@@ -752,6 +754,70 @@ const AI_STRATEGIES = {
       const res = this.decide(gs, p);
       if (res._evading && res._threat) {
         return Math.hypot(gs.player.x - res._threat.x, gs.player.y - res._threat.y) < p.safetyRadius * 0.75 ? 'Dodging' : 'Evading';
+      }
+      if (res.shoot) return 'Firing';
+      if (gs.asteroids.some(a => a.y < gs.player.y)) return 'Tracking';
+      return 'Idle';
+    },
+  },
+
+  trajectory: {
+    name: '軌跡預測',
+    decide(gs, p) {
+      const px = gs.player.x, py = gs.player.y;
+      let left = false, right = false, up = false, down = false, shoot = false;
+
+      // 對所有隕石計算落點，找最緊急威脅
+      let worstThreat = null, worstUrgency = 0;
+      gs.asteroids.forEach(a => {
+        if (a.vy <= 0) return;
+        const frames = (py - a.y) / a.vy;
+        if (frames <= 0) return;                  // 已超過玩家
+        const landingX   = a.x + a.vx * frames;
+        const dangerW    = a.r + 36;              // 碰撞閾值16 + 緩衝20
+        const lateralGap = Math.abs(landingX - px);
+        if (lateralGap < dangerW) {
+          const urgency = dangerW / Math.max(frames, 1);
+          if (urgency > worstUrgency) {
+            worstUrgency = urgency;
+            worstThreat  = { landingX, frames, a };
+          }
+        }
+      });
+
+      let evading = false;
+      if (worstThreat) {
+        if (px < worstThreat.landingX) left = true;
+        else right = true;
+        evading = true;
+      }
+
+      // 無威脅時：往畫面下半部中央靠攏
+      if (!evading) {
+        const targetX = W / 2, targetY = H * 0.78;
+        if (px < targetX - 12) right = true;
+        else if (px > targetX + 12) left = true;
+        if (py < targetY - 12) down = true;
+        else if (py > targetY + 12) up = true;
+      }
+
+      // 射擊：隕石在上方且橫向對齊
+      gs.asteroids.forEach(a => {
+        if (a.y < py && Math.abs(a.x - px) < p.aimTolerance &&
+            Math.random() < p.aggressionLevel / 10) shoot = true;
+      });
+
+      // Dash：落點極近且冷卻就緒
+      const dash = dashConfig.enabled && gs.dashCooldown === 0 &&
+        worstThreat !== null && worstThreat.frames < 25;
+
+      return { left, right, up, down, shoot, dash,
+               _evading: evading, _threat: worstThreat };
+    },
+    getDecisionState(gs, p) {
+      const res = this.decide(gs, p);
+      if (res._evading && res._threat) {
+        return res._threat.frames < 20 ? 'Dodging' : 'Evading';
       }
       if (res.shoot) return 'Firing';
       if (gs.asteroids.some(a => a.y < gs.player.y)) return 'Tracking';
@@ -1898,7 +1964,7 @@ document.getElementById('cp-react').addEventListener('input', e => {
 });
 
 // 策略按鈕（ctrl panel）
-['threat', 'aggressive', 'defensive'].forEach(s => {
+['threat', 'aggressive', 'defensive', 'trajectory'].forEach(s => {
   document.getElementById('ctrl-strat-' + s).addEventListener('click', () => {
     setStrategy(s);
     document.querySelectorAll('#ctrl-page-ai .strat-btn').forEach(b => b.classList.remove('active'));

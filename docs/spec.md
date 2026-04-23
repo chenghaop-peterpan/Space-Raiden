@@ -177,23 +177,36 @@ level = 1 + floor(score / 300)
 
 ```javascript
 const AI_STRATEGIES = {
-  threat:     { name: '威脅迴避', decide(gs, p), getDecisionState(gs, p) },
-  aggressive: { name: '強攻型',   decide(gs, p), getDecisionState(gs, p) },
-  defensive:  { name: '防守型',   decide(gs, p), getDecisionState(gs, p) },
+  threat:      { name: '威脅迴避', decide(gs, p), getDecisionState(gs, p) },
+  aggressive:  { name: '強攻型',   decide(gs, p), getDecisionState(gs, p) },
+  defensive:   { name: '防守型',   decide(gs, p), getDecisionState(gs, p) },
+  trajectory:  { name: '軌跡預測', decide(gs, p), getDecisionState(gs, p) },
 };
 ```
 
 - `decide(gs, p)` → `{ left, right, up, down, shoot, dash }` 指令物件
 - `getDecisionState(gs, p)` → `string`（用於 HUD 顯示）
-- `currentStrategy`：目前選用的策略鍵（`'threat'` / `'aggressive'` / `'defensive'`）
+- `currentStrategy`：目前選用的策略鍵（`'threat'` / `'aggressive'` / `'defensive'` / `'trajectory'`）
 
-#### 各策略 Dash 門檻
+#### 各策略比較
 
-| 策略 | Dash 觸發條件（距離 < safetyRadius × N） |
-|------|----------------------------------------|
-| 威脅迴避 | × 0.35（中等積極） |
-| 強攻型 | × 0.25（保守，偏好戰鬥） |
-| 防守型 | × 0.50（積極，優先逃生） |
+| 策略 | 決策邏輯 | Dash 觸發條件 |
+|------|---------|--------------|
+| 威脅迴避 | 距離 < safetyRadius（反應式） | 距離 < safetyRadius × 0.35 |
+| 強攻型 | 距離 < safetyRadius × 0.6（反應式） | 距離 < safetyRadius × 0.25 |
+| 防守型 | 距離 < safetyRadius × 1.5（反應式） | 距離 < safetyRadius × 0.50 |
+| 軌跡預測 | 計算落點 X，提前側移（預測式） | 落點距離 < 25 幀 |
+
+#### 軌跡預測演算法
+
+```
+frames    = (player.y - asteroid.y) / asteroid.vy   // 隕石落到玩家 Y 需幾幀
+landingX  = asteroid.x + asteroid.vx * frames        // 落點 X
+dangerW   = asteroid.r + 36                          // 危險寬度（碰撞閾值16 + 緩衝20）
+if |landingX - player.x| < dangerW → 威脅；urgency = dangerW / frames
+```
+
+優先處理 urgency 最高（最緊急）的威脅，往其落點反方向移動。
 
 ### API
 
@@ -348,7 +361,7 @@ Run,Score,Level,Accuracy(%),Duration(s),Strategy,Idle(%),Tracking(%),Firing(%),E
 ### 三個 Tab
 
 #### AI 參數 tab
-即時調整 `aiParams` 所有欄位（安全距離、瞄準容差、攻擊性、預測幀數、反應延遲），滑桿變更立即生效，並同步原有 `#ai-panel` 顯示值。支援策略切換（威脅迴避 / 強攻型 / 防守型）。
+即時調整 `aiParams` 所有欄位（安全距離、瞄準容差、攻擊性、預測幀數、反應延遲），滑桿變更立即生效，並同步原有 `#ai-panel` 顯示值。支援策略切換（威脅迴避 / 強攻型 / 防守型 / 軌跡預測）。
 
 #### 視覺化 tab
 - **Debug HUD**：開啟/關閉 Canvas 疊加儀表板（`hudVisible`）

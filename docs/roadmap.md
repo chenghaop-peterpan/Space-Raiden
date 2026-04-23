@@ -32,6 +32,7 @@
 | v1.7.2 | 測試重構：移除低 priority DOM UI 測試，補 dashCooldown unit test |
 | v1.8.0 | 統一設定面板（H鍵）+ Input Log + AI Terminal，移除 H/R/B/E 快捷鍵 |
 | v1.9.0 | localStorage 持久化：runHistory / epochHistory / inputLog 跨 session 保存 |
+| v2.0.0 | 軌跡預測型 AI 策略（第四種）：計算落點 X 提前閃避 |
 
 ---
 

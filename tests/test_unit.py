@@ -354,6 +354,54 @@ def test_storage_loads_on_init(playing_page):
     _print(f"  [OK] runHistory restored: {result} entry")
 
 
+# ── 軌跡預測策略 ──────────────────────────────────────────────────────────────
+
+def test_trajectory_calculates_correct_landing_x(playing_page):
+    _print("\n[UNIT TEST] Test: trajectory landing X formula: landingX = ax + vx * (py - ay) / vy")
+    result = playing_page.evaluate("""() => {
+        const py = 500, ay = 100, vx = 2, vy = 5;
+        const frames = (py - ay) / vy;   // 80
+        const landingX = 200 + vx * frames;  // 200 + 160 = 360
+        return { frames, landingX };
+    }""")
+    assert result["frames"] == 80
+    assert result["landingX"] == 360
+    _print(f"  [OK] frames={result['frames']}, landingX={result['landingX']}")
+
+
+def test_trajectory_strategy_moves_away_from_landing_x(playing_page):
+    _print("\n[UNIT TEST] Test: trajectory strategy → asteroid landing right of player → cmd.left=true")
+    result = playing_page.evaluate("""() => {
+        // Player at x=240, y=500
+        // Asteroid at x=260, y=100, vx=0, vy=4 → frames=100, landingX=260
+        // lateralGap = |260-240|=20, dangerW=20+36=56, 20<56 → threat
+        // player.x(240) < landingX(260) → left=true
+        player.x = 240; player.y = 500;
+        asteroids = [{ x: 260, y: 100, r: 20, hp: 1, vx: 0, vy: 4 }];
+        const gs = getGameState();
+        const cmd = AI_STRATEGIES.trajectory.decide(gs, aiParams);
+        return { left: cmd.left, right: cmd.right };
+    }""")
+    assert result["left"] is True
+    assert result["right"] is False
+    _print(f"  [OK] cmd.left={result['left']}, cmd.right={result['right']}")
+
+
+def test_trajectory_strategy_ignores_passed_asteroids(playing_page):
+    _print("\n[UNIT TEST] Test: asteroid below player.y (frames<=0) → trajectory strategy no evade")
+    result = playing_page.evaluate("""() => {
+        // Set up: asteroid already past player (a.y > player.y with vy > 0 → frames <= 0)
+        asteroids = [{ x: 240, y: 600, r: 20, hp: 1, vx: 0, vy: 3 }];
+        player.x = 240; player.y = 500;
+        const gs = getGameState();
+        const cmd = AI_STRATEGIES.trajectory.decide(gs, aiParams);
+        return { left: cmd.left, right: cmd.right };
+    }""")
+    assert result["left"] is False
+    assert result["right"] is False
+    _print(f"  [OK] passed asteroid ignored: left={result['left']}, right={result['right']}")
+
+
 def test_clear_storage_resets_all(playing_page):
     _print("\n[UNIT TEST] Test: clearStorage() removes all sr_* keys and resets runHistory")
     result = playing_page.evaluate("""() => {
