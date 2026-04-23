@@ -550,6 +550,12 @@
       <button class="toggle-btn" id="btn-export-bm" style="flex:1;">↓ 匯出 Benchmark CSV</button></div>
     <div class="param-row">
       <button class="toggle-btn" id="btn-export-inputlog" style="flex:1;">↓ 匯出 Input Log CSV</button></div>
+    <div class="param-row">
+      <span id="storage-info" style="font-size:11px;color:#aef;flex:1;">本地儲存：0 場 / 0 KB</span>
+    </div>
+    <div class="param-row">
+      <button class="toggle-btn" id="btn-clear-storage" style="flex:1;border-color:#f44;color:#f44;">✕ 清除本地儲存</button>
+    </div>
   </div>
 </div>
 <div id="input-log-panel">
@@ -1263,6 +1269,7 @@ function recordRun() {
   };
   runHistory.push(entry);
   if (currentEpochId !== null) epochRunsBuffer.push(entry);
+  _saveRuns(); _saveInputLog(); updateStorageInfo();
   renderBenchmarkPanel();
   if (gameMode === 'ai' && epochSize > 1 && currentEpochId !== null) advanceEpoch();
 }
@@ -1315,6 +1322,7 @@ function finalizeEpoch() {
     avgFrames: Math.round(frames.reduce((s, v) => s + v, 0) / frames.length),
   };
   epochHistory.push(summary);
+  _saveEpochs(); updateStorageInfo();
   currentEpochId = null;
   epochCurrent   = 0;
   document.getElementById('epoch-hud').style.display = 'none';
@@ -1729,6 +1737,42 @@ function loop() {
   requestAnimationFrame(loop);
 }
 
+// --- localStorage 持久化 ---
+function _saveRuns()     { try { localStorage.setItem('sr_runs',     JSON.stringify(runHistory));   } catch(e) {} }
+function _saveEpochs()   { try { localStorage.setItem('sr_epochs',   JSON.stringify(epochHistory)); } catch(e) {} }
+function _saveInputLog() { try { localStorage.setItem('sr_inputlog', JSON.stringify(inputLog));     } catch(e) {} }
+
+function updateStorageInfo() {
+  const bytes = ['sr_runs', 'sr_epochs', 'sr_inputlog']
+    .reduce((s, k) => s + (localStorage.getItem(k)?.length ?? 0), 0);
+  const el = document.getElementById('storage-info');
+  if (el) el.textContent = `本地儲存：${runHistory.length} 場 / ${(bytes / 1024).toFixed(1)} KB`;
+}
+
+function clearStorage() {
+  localStorage.removeItem('sr_runs');
+  localStorage.removeItem('sr_epochs');
+  localStorage.removeItem('sr_inputlog');
+  runHistory = []; epochHistory = [];
+  inputLog = [];
+  renderBenchmarkPanel();
+  updateInputLogPanel();
+  updateStorageInfo();
+}
+
+function loadStorage() {
+  try {
+    const r  = localStorage.getItem('sr_runs');
+    if (r)  runHistory   = JSON.parse(r);
+    const ep = localStorage.getItem('sr_epochs');
+    if (ep) epochHistory = JSON.parse(ep);
+    const il = localStorage.getItem('sr_inputlog');
+    if (il) inputLog     = JSON.parse(il);
+  } catch(err) { console.warn('[Storage] load failed', err); }
+}
+loadStorage();
+updateStorageInfo();
+
 loop();
 
 // --- AI 面板事件 ---
@@ -1887,6 +1931,9 @@ document.getElementById('btn-export-bm').addEventListener('click', () => {
 document.getElementById('btn-export-inputlog').addEventListener('click', exportInputLogCSV);
 
 // Input Log Panel 按鈕
+document.getElementById('btn-clear-storage').addEventListener('click', () => {
+  if (confirm('確認清除所有本地儲存資料（runHistory / epochHistory / inputLog）？')) clearStorage();
+});
 document.getElementById('btn-il-close').addEventListener('click', () => {
   inputLogVisible = false;
   document.getElementById('input-log-panel').style.display = 'none';
