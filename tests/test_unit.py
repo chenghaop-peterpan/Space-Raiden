@@ -306,3 +306,71 @@ def test_dash_cooldown_clamps_at_zero(playing_page):
     }""")
     assert result == 0
     _print(f"  [OK] dashCooldown stays at {result}")
+
+
+# ── localStorage 持久化 ────────────────────────────────────────────────────────
+
+def test_storage_saves_run_history(playing_page):
+    _print("\n[UNIT TEST] Test: recordRun() saves runHistory to localStorage['sr_runs']")
+    result = playing_page.evaluate("""() => {
+        localStorage.removeItem('sr_runs');
+        runHistory = [];
+        score = 200; level = 2; shotsFired = 10; shotsHit = 7; frameCount = 600;
+        recordRun();
+        const stored = localStorage.getItem('sr_runs');
+        if (!stored) return null;
+        return JSON.parse(stored).length;
+    }""")
+    assert result == 1
+    _print(f"  [OK] sr_runs has {result} entry after recordRun()")
+
+
+def test_storage_saves_input_log(playing_page):
+    _print("\n[UNIT TEST] Test: recordRun() saves inputLog snapshot to localStorage['sr_inputlog']")
+    result = playing_page.evaluate("""() => {
+        localStorage.removeItem('sr_inputlog');
+        inputLog = [{frame:1, keys:'-', x:240, y:400, dx:0, dy:0, dist:0, event:''}];
+        score = 100; level = 1; shotsFired = 5; shotsHit = 3; frameCount = 300;
+        recordRun();
+        const stored = localStorage.getItem('sr_inputlog');
+        return stored !== null;
+    }""")
+    assert result is True
+    _print(f"  [OK] sr_inputlog saved after recordRun()")
+
+
+def test_storage_loads_on_init(playing_page):
+    _print("\n[UNIT TEST] Test: loadStorage() restores runHistory from localStorage")
+    result = playing_page.evaluate("""() => {
+        const fakeRuns = [{ run:1, score:500, level:3, accuracy:70,
+            frames:1800, mode:'player', states:{Idle:0,Tracking:0,Firing:0,Evading:0,Dodging:0},
+            strategy:'threat', epochId:null }];
+        localStorage.setItem('sr_runs', JSON.stringify(fakeRuns));
+        runHistory = [];
+        loadStorage();
+        return runHistory.length;
+    }""")
+    assert result == 1
+    _print(f"  [OK] runHistory restored: {result} entry")
+
+
+def test_clear_storage_resets_all(playing_page):
+    _print("\n[UNIT TEST] Test: clearStorage() removes all sr_* keys and resets runHistory")
+    result = playing_page.evaluate("""() => {
+        runHistory = [{ run:1, score:100 }];
+        epochHistory = [];
+        inputLog = [];
+        _saveRuns();
+        clearStorage();
+        return {
+            runsKey:    localStorage.getItem('sr_runs'),
+            epochsKey:  localStorage.getItem('sr_epochs'),
+            inputlogKey: localStorage.getItem('sr_inputlog'),
+            runHistoryLen: runHistory.length,
+        };
+    }""")
+    assert result["runsKey"] is None
+    assert result["epochsKey"] is None
+    assert result["inputlogKey"] is None
+    assert result["runHistoryLen"] == 0
+    _print(f"  [OK] all sr_* keys cleared, runHistory.length={result['runHistoryLen']}")

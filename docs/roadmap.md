@@ -31,6 +31,7 @@
 | v1.7.1 | Dash 冷卻倒數 UI：冷卻中顯示剩餘秒數，而非完全隱藏 |
 | v1.7.2 | 測試重構：移除低 priority DOM UI 測試，補 dashCooldown unit test |
 | v1.8.0 | 統一設定面板（H鍵）+ Input Log + AI Terminal，移除 H/R/B/E 快捷鍵 |
+| v1.9.0 | localStorage 持久化：runHistory / epochHistory / inputLog 跨 session 保存 |
 
 ---
 

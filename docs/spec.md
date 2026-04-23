@@ -442,6 +442,38 @@ FRAME  DECISION  CMD  d:DIST
 
 ---
 
+## 本地儲存（localStorage）
+
+### Keys
+
+| Key | 內容 | 更新時機 |
+|-----|------|---------|
+| `sr_runs` | `JSON(runHistory[])` | `recordRun()` 後 |
+| `sr_epochs` | `JSON(epochHistory[])` | `finalizeEpoch()` 後 |
+| `sr_inputlog` | `JSON(inputLog[])` 最後一局快照 | `recordRun()` 後 |
+
+### 容量估算
+
+| 資料 | 估算 | 說明 |
+|------|------|------|
+| `sr_runs` | ~200 bytes/場 | 1000 場 ≈ 200KB |
+| `sr_epochs` | 極小 | 忽略不計 |
+| `sr_inputlog` | ~80 bytes/幀 | 7200 幀 ≈ 576KB |
+| 合計 | < 1.5MB | 遠低於 5MB 上限 |
+
+### API
+
+| 函數 | 說明 |
+|------|------|
+| `loadStorage()` | 頁面啟動時還原三組資料（try/catch 防止損壞資料） |
+| `_saveRuns()` | 儲存 runHistory |
+| `_saveEpochs()` | 儲存 epochHistory |
+| `_saveInputLog()` | 儲存 inputLog 快照 |
+| `updateStorageInfo()` | 更新設定面板「N 場 / X KB」顯示 |
+| `clearStorage()` | 移除三個 key，重置對應變數，重繪面板 |
+
+---
+
 ## 效能考量
 
 - 所有物件以陣列管理，每幀用 `filter` 移除過期物件
