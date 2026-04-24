@@ -440,6 +440,11 @@
     <input type="range" id="p-dash-cd" min="0.5" max="3.0" step="0.5" value="2.0">
     <span class="param-val" id="v-dash-cd">2.0 s</span>
   </div>
+  <div class="param-row">
+    <span class="param-label">衝刺速度</span>
+    <input type="range" id="p-dash-speed" min="30" max="120" step="10" value="80">
+    <span class="param-val" id="v-dash-speed">80</span>
+  </div>
   <div id="settings-buttons">
     <button id="btn-settings-back">◄ 返回</button>
   </div>
@@ -893,9 +898,14 @@ let dashConfig = {
   invincible:    true,
   invincibleSec: 1.0,
   cooldownSec:   2.0,
+  dashSpeed:     80,
 };
 let dashCooldown = 0;
 let dashGhosts   = [];
+let dashActive   = false;
+let dashImpulseX = 0;
+let dashImpulseY = 0;
+let dashStreaks   = [];
 
 // --- Epoch 系統 ---
 let epochSize       = 1;
@@ -1034,8 +1044,8 @@ function startGame(mode = 'player') {
   invincible = 0; shake = 0; laserCooldown = 0;
   shotsFired = 0; shotsHit = 0; aiDecisionState = 'Idle';
   stateFrameCounts = { Idle:0, Tracking:0, Firing:0, Evading:0, Dodging:0 };
-  asteroids = []; lasers = []; explosions = []; particles = []; dashGhosts = [];
-  dashCooldown = 0;
+  asteroids = []; lasers = []; explosions = []; particles = []; dashGhosts = []; dashStreaks = [];
+  dashCooldown = 0; dashActive = false; dashImpulseX = 0; dashImpulseY = 0;
   inputLog = []; _frameEvent = ''; aiTermLog = [];
   player.x = W / 2; player.y = H - 90;
   player.vx = 0; player.vy = 0;
@@ -1125,21 +1135,27 @@ function executeCommand(cmd = {}) {
 // --- Dash ---
 function fireDash() {
   if (!dashConfig.enabled || dashCooldown > 0) return;
-  const oldX = player.x, oldY = player.y;
+  dashActive   = true;
+  dashImpulseX = 0;
+  dashImpulseY = 0;
   if (dashConfig.upOnly) {
-    player.y = Math.max(player.h / 2, player.y - player.h);
+    dashImpulseY = -dashConfig.dashSpeed;
   } else {
     const mag = Math.hypot(player.vx, player.vy) || 0.001;
-    const nx = player.vx / mag, ny = player.vy / mag;
-    player.x = Math.max(player.w/2, Math.min(W - player.w/2, player.x + nx * player.h));
-    player.y = Math.max(player.h/2, Math.min(H - player.h/2, player.y + ny * player.h));
+    dashImpulseX = (player.vx / mag) * dashConfig.dashSpeed;
+    dashImpulseY = (player.vy / mag) * dashConfig.dashSpeed;
   }
-  player.vy = Math.min(player.vy, 0);
+  // 速度流光（玩家身後，與衝刺反方向延伸）
+  dashStreaks = Array.from({ length: 10 }, () => ({
+    x:    player.x + (Math.random() - 0.5) * 28,
+    y:    player.y + player.h * 0.3 + Math.random() * player.h * 0.4,
+    len:  12 + Math.random() * 22,
+    life: 1,
+  }));
   dashCooldown = Math.round(dashConfig.cooldownSec * 60);
   if (dashConfig.invincible) {
     invincible = Math.max(invincible, Math.round(dashConfig.invincibleSec * 60));
   }
-  dashGhosts.push({ x: oldX, y: oldY, life: 1 });
   _frameEvent = 'DASH';
 }
 
@@ -1220,6 +1236,21 @@ function update() {
   player.vx = Math.max(-sp, Math.min(sp, player.vx));
   player.vy = Math.max(-sp, Math.min(sp, player.vy));
   player.x += player.vx; player.y += player.vy;
+
+  // Dash 衝量
+  if (dashActive) {
+    dashImpulseX *= 0.60;
+    dashImpulseY *= 0.60;
+    if (Math.abs(dashImpulseX) < 0.8 && Math.abs(dashImpulseY) < 0.8) {
+      dashActive = false; dashImpulseX = 0; dashImpulseY = 0;
+    } else {
+      player.x += dashImpulseX;
+      player.y += dashImpulseY;
+      dashGhosts.push({ x: player.x, y: player.y, life: 0.9 });
+    }
+  }
+  dashStreaks = dashStreaks.filter(s => { s.life -= 0.10; return s.life > 0; });
+
   player.x = Math.max(player.w/2, Math.min(W - player.w/2, player.x));
   player.y = Math.max(player.h/2, Math.min(H - player.h/2, player.y));
 
@@ -1833,6 +1864,21 @@ function draw() {
     ctx.restore();
   });
 
+  // 速度流光
+  dashStreaks.forEach(s => {
+    ctx.save();
+    ctx.globalAlpha = s.life * 0.80;
+    ctx.strokeStyle = '#0ff';
+    ctx.lineWidth = 1.5;
+    ctx.shadowColor = '#0ff';
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.moveTo(s.x, s.y);
+    ctx.lineTo(s.x, s.y + s.len);
+    ctx.stroke();
+    ctx.restore();
+  });
+
   // Dash 殘影
   dashGhosts.forEach(g => {
     ctx.save();
@@ -2054,6 +2100,10 @@ document.getElementById('p-inv-sec').addEventListener('input', e => {
 document.getElementById('p-dash-cd').addEventListener('input', e => {
   dashConfig.cooldownSec = +e.target.value;
   document.getElementById('v-dash-cd').textContent = e.target.value + ' s';
+});
+document.getElementById('p-dash-speed').addEventListener('input', e => {
+  dashConfig.dashSpeed = +e.target.value;
+  document.getElementById('v-dash-speed').textContent = e.target.value;
 });
 
 // --- Ctrl Panel 事件 ---
