@@ -536,3 +536,54 @@ def test_dash_burst_impulse_stops(playing_page):
     assert result["dashActive"] is False
     assert result["frames"] <= 15, f"should stop within 15 frames, took {result['frames']}"
     _print(f"  [OK] dashActive=False after {result['frames']} frames")
+
+
+def test_dual_savestate_loadstate(playing_page):
+    _print("\n[UNIT TEST] Test: saveState/loadState correctly round-trips score, level, currentStrategy")
+    result = playing_page.evaluate("""() => {
+        score = 250; level = 3; currentStrategy = 'trajectory';
+        const gs = {};
+        saveState(gs);
+        score = 0; level = 1; currentStrategy = 'threat';
+        loadState(gs);
+        return { score, level, currentStrategy };
+    }""")
+    assert result["score"] == 250
+    assert result["level"] == 3
+    assert result["currentStrategy"] == "trajectory"
+    _print(f"  [OK] score={result['score']}, level={result['level']}, strategy={result['currentStrategy']}")
+
+
+def test_dual_init_instance(playing_page):
+    _print("\n[UNIT TEST] Test: initDualInstance() initializes state='playing', score=0, epochDone=false")
+    result = playing_page.evaluate("""() => {
+        const gs = {};
+        initDualInstance(gs, 'aggressive');
+        return { state: gs.state, score: gs.score, strategy: gs.currentStrategy, epochDone: gs.epochDone };
+    }""")
+    assert result["state"] == "playing"
+    assert result["score"] == 0
+    assert result["strategy"] == "aggressive"
+    assert result["epochDone"] is False
+    _print(f"  [OK] state={result['state']}, strategy={result['strategy']}, epochDone={result['epochDone']}")
+
+
+def test_dual_epoch_advances_when_both_done(playing_page):
+    _print("\n[UNIT TEST] Test: both instances gameover → dualEpochResults gets a new entry")
+    result = playing_page.evaluate("""() => {
+        dualMode = true;
+        dualPhase = 'running';
+        dualEpochCurrent = 0;
+        dualTotalEpochs = 5;
+        dualEpochResults = [];
+        gsA = {}; initDualInstance(gsA, 'threat');
+        gsB = {}; initDualInstance(gsB, 'trajectory');
+        gsA.state = 'gameover'; gsA.score = 300;
+        gsB.state = 'gameover'; gsB.score = 400;
+        checkDualEpoch();
+        return { resultCount: dualEpochResults.length, scoreA: dualEpochResults[0]?.scoreA, scoreB: dualEpochResults[0]?.scoreB };
+    }""")
+    assert result["resultCount"] == 1
+    assert result["scoreA"] == 300
+    assert result["scoreB"] == 400
+    _print(f"  [OK] epoch recorded: scoreA={result['scoreA']}, scoreB={result['scoreB']}")

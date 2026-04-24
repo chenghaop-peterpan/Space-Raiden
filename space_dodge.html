@@ -543,6 +543,78 @@
     </table>
   </div>
 </div>
+<div id="dual-compare-panel" style="display:none; position:fixed; inset:0;
+  background:#0a0a0a; z-index:200; flex-direction:column; overflow:auto;">
+  <div id="dcp-header" style="display:flex; align-items:center; gap:10px;
+    padding:10px 16px; background:#111; border-bottom:1px solid #333; flex-shrink:0; flex-wrap:wrap;">
+    <span style="color:#0cf; font-weight:bold; font-family:monospace;">⚡ 即時雙 AI 對比</span>
+    <select id="dcp-strat-a" style="background:#222;color:#0ff;border:1px solid #0aa;border-radius:4px;padding:3px 6px;font-family:monospace;">
+      <option value="threat">威脅迴避</option>
+      <option value="aggressive">強攻型</option>
+      <option value="defensive">防守型</option>
+      <option value="trajectory">軌跡預測</option>
+    </select>
+    <span style="color:#888;">VS</span>
+    <select id="dcp-strat-b" style="background:#222;color:#fa0;border:1px solid #a80;border-radius:4px;padding:3px 6px;font-family:monospace;">
+      <option value="threat">威脅迴避</option>
+      <option value="aggressive">強攻型</option>
+      <option value="defensive">防守型</option>
+      <option value="trajectory" selected>軌跡預測</option>
+    </select>
+    <label style="color:#888;font-size:12px;font-family:monospace;">Epochs:
+      <input id="dcp-epochs" type="number" value="10" min="1" max="50"
+        style="width:50px;background:#222;color:#ccc;border:1px solid #444;border-radius:4px;padding:2px 4px;">
+    </label>
+    <button onclick="startDualCompare()"
+      style="background:#1a3;color:#fff;border:none;border-radius:4px;padding:5px 14px;cursor:pointer;font-family:monospace;">▶ 開始</button>
+    <button onclick="dualPhase='idle'"
+      style="background:#333;color:#aaa;border:1px solid #555;border-radius:4px;padding:5px 10px;cursor:pointer;font-family:monospace;">■ 停止</button>
+    <span id="dcp-status" style="color:#888;font-size:12px;font-family:monospace;"></span>
+    <div style="flex:1;"></div>
+    <button onclick="dualMode=false; document.getElementById('dual-compare-panel').style.display='none'"
+      style="background:none;border:none;color:#aaa;font-size:20px;cursor:pointer;">✕</button>
+  </div>
+  <div style="display:flex; gap:8px; padding:8px; align-items:flex-start; justify-content:center; flex-shrink:0; flex-wrap:wrap;">
+    <div style="width:180px; height:420px; background:#0d0d0d; border:1px solid #0aa;
+      border-radius:6px; overflow:hidden; display:flex; flex-direction:column; flex-shrink:0;">
+      <div style="padding:4px 8px; background:rgba(0,170,170,0.1); color:#0ff; font-size:11px; font-family:monospace; font-weight:bold; border-bottom:1px solid #0aa3;">
+        ⚙ <span id="dcp-term-title-a">A</span>
+      </div>
+      <div id="dcp-term-body-a" style="flex:1; overflow-y:auto; padding:4px 6px;
+        font-size:10px; font-family:monospace; line-height:1.4;"></div>
+    </div>
+    <div style="flex-shrink:0;">
+      <div id="dcp-score-a" style="text-align:center; color:#0ff; font-family:monospace;
+        font-size:12px; margin-bottom:4px; min-height:16px;"></div>
+      <div style="width:312px; height:416px; overflow:hidden; border:1px solid #0aa3; border-radius:4px;">
+        <canvas id="canvas-dual-a" width="480" height="640"
+          style="transform:scale(0.65); transform-origin:top left; display:block;"></canvas>
+      </div>
+    </div>
+    <div style="flex-shrink:0;">
+      <div id="dcp-score-b" style="text-align:center; color:#fa0; font-family:monospace;
+        font-size:12px; margin-bottom:4px; min-height:16px;"></div>
+      <div style="width:312px; height:416px; overflow:hidden; border:1px solid #a803; border-radius:4px;">
+        <canvas id="canvas-dual-b" width="480" height="640"
+          style="transform:scale(0.65); transform-origin:top left; display:block;"></canvas>
+      </div>
+    </div>
+    <div style="width:180px; height:420px; background:#0d0d0d; border:1px solid #a80;
+      border-radius:6px; overflow:hidden; display:flex; flex-direction:column; flex-shrink:0;">
+      <div style="padding:4px 8px; background:rgba(170,136,0,0.1); color:#fa0; font-size:11px; font-family:monospace; font-weight:bold; border-bottom:1px solid #a803;">
+        ⚙ <span id="dcp-term-title-b">B</span>
+      </div>
+      <div id="dcp-term-body-b" style="flex:1; overflow-y:auto; padding:4px 6px;
+        font-size:10px; font-family:monospace; line-height:1.4;"></div>
+    </div>
+  </div>
+  <div style="padding:8px 16px; flex-shrink:0;">
+    <canvas id="dcp-chart" width="900" height="180"
+      style="width:100%; max-width:900px; background:#0d0d0d; border:1px solid #333; border-radius:6px; display:block; margin:0 auto;"></canvas>
+    <div id="dcp-stats" style="text-align:center; font-family:monospace; font-size:12px;
+      margin-top:6px; color:#888; min-height:18px;"></div>
+  </div>
+</div>
 <div id="ctrl-panel">
   <div id="ctrl-header">
     <span>⚙ 設定</span>
@@ -623,6 +695,9 @@
     <div class="param-row">
       <button class="toggle-btn" id="btn-open-compare" style="flex:1;border-color:#4a4;color:#4f4;">⚔ 策略對比</button>
     </div>
+    <div class="param-row">
+      <button class="toggle-btn" id="btn-open-dual" style="flex:1;border-color:#0af;color:#0cf;">⚡ 即時雙 AI 對比</button>
+    </div>
   </div>
 </div>
 <div id="input-log-panel">
@@ -650,7 +725,7 @@
 
 <script>
 const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
+let ctx = canvas.getContext('2d');
 const W = canvas.width, H = canvas.height;
 
 // --- 狀態 ---
@@ -918,6 +993,17 @@ let frameCount = 0;
 let invincible = 0;      // 無敵幀數
 let shake = 0;           // 震動幀數
 
+// --- 雙 AI 對比模式 ---
+let dualMode         = false;
+let dualPhase        = 'idle';   // idle | running | done
+let dualStratA       = 'threat';
+let dualStratB       = 'trajectory';
+let dualTotalEpochs  = 10;
+let dualEpochCurrent = 0;
+let dualEpochResults = [];
+let gsA = null, gsB = null;
+let ctxA = null, ctxB = null;
+
 // --- AI 研究追蹤 ---
 let hudVisible           = false;
 let safetyRadiusVisible  = false;
@@ -1035,6 +1121,219 @@ document.addEventListener('keydown', e => {
   }
 });
 document.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// --- 雙 AI State Swap ---
+function saveState(gs) {
+  gs.frameCount    = frameCount;
+  gs.state         = state;
+  gs.gameMode      = gameMode;
+  gs.score         = score;
+  gs.lives         = lives;
+  gs.level         = level;
+  gs.player        = { x:player.x, y:player.y, vx:player.vx, vy:player.vy, trail:[...player.trail] };
+  gs.asteroids     = asteroids;
+  gs.lasers        = lasers;
+  gs.explosions    = explosions;
+  gs.particles     = particles;
+  gs.dashGhosts    = dashGhosts;
+  gs.dashStreaks    = dashStreaks;
+  gs.laserCooldown = laserCooldown;
+  gs.invincible    = invincible;
+  gs.shake         = shake;
+  gs.dashCooldown  = dashCooldown;
+  gs.dashActive    = dashActive;
+  gs.dashImpulseX  = dashImpulseX;
+  gs.dashImpulseY  = dashImpulseY;
+  gs.currentStrategy  = currentStrategy;
+  gs.aiDecisionState  = aiDecisionState;
+  gs.stateFrameCounts = { ...stateFrameCounts };
+  gs.shotsFired    = shotsFired;
+  gs.shotsHit      = shotsHit;
+  gs.aiTermLog     = aiTermLog;
+}
+
+function loadState(gs) {
+  frameCount    = gs.frameCount;
+  state         = gs.state;
+  gameMode      = gs.gameMode;
+  score         = gs.score;
+  lives         = gs.lives;
+  level         = gs.level;
+  player.x = gs.player.x; player.y = gs.player.y;
+  player.vx = gs.player.vx; player.vy = gs.player.vy;
+  player.trail  = gs.player.trail;
+  asteroids     = gs.asteroids;
+  lasers        = gs.lasers;
+  explosions    = gs.explosions;
+  particles     = gs.particles;
+  dashGhosts    = gs.dashGhosts;
+  dashStreaks    = gs.dashStreaks;
+  laserCooldown = gs.laserCooldown;
+  invincible    = gs.invincible;
+  shake         = gs.shake;
+  dashCooldown  = gs.dashCooldown;
+  dashActive    = gs.dashActive;
+  dashImpulseX  = gs.dashImpulseX;
+  dashImpulseY  = gs.dashImpulseY;
+  currentStrategy   = gs.currentStrategy;
+  aiDecisionState   = gs.aiDecisionState;
+  stateFrameCounts  = { ...gs.stateFrameCounts };
+  shotsFired    = gs.shotsFired;
+  shotsHit      = gs.shotsHit;
+  aiTermLog     = gs.aiTermLog;
+}
+
+function initDualInstance(gs, strategy) {
+  gs.frameCount = 0; gs.state = 'playing'; gs.gameMode = 'ai';
+  gs.score = 0; gs.lives = 3; gs.level = 1;
+  gs.player = { x: W/2, y: H-90, vx:0, vy:0, trail:[] };
+  gs.asteroids=[]; gs.lasers=[]; gs.explosions=[]; gs.particles=[];
+  gs.dashGhosts=[]; gs.dashStreaks=[];
+  gs.laserCooldown=0; gs.invincible=0; gs.shake=0;
+  gs.dashCooldown=0; gs.dashActive=false; gs.dashImpulseX=0; gs.dashImpulseY=0;
+  gs.currentStrategy = strategy;
+  gs.aiDecisionState = 'Idle';
+  gs.stateFrameCounts = { Idle:0, Tracking:0, Firing:0, Evading:0, Dodging:0 };
+  gs.shotsFired=0; gs.shotsHit=0;
+  gs.aiTermLog=[];
+  gs.epochDone=false; gs.lastScore=0; gs.lastFrames=0;
+}
+
+function startDualCompare() {
+  dualStratA      = document.getElementById('dcp-strat-a').value;
+  dualStratB      = document.getElementById('dcp-strat-b').value;
+  dualTotalEpochs = Math.max(1, Math.min(50, +document.getElementById('dcp-epochs').value || 10));
+  dualEpochCurrent = 0;
+  dualEpochResults = [];
+  dualPhase = 'running';
+  gsA = {}; gsB = {};
+  ctxA = document.getElementById('canvas-dual-a').getContext('2d');
+  ctxB = document.getElementById('canvas-dual-b').getContext('2d');
+  initDualInstance(gsA, dualStratA);
+  initDualInstance(gsB, dualStratB);
+  document.getElementById('dcp-term-title-a').textContent = AI_STRATEGIES[dualStratA].name;
+  document.getElementById('dcp-term-title-b').textContent = AI_STRATEGIES[dualStratB].name;
+  renderDualChart();
+  updateDualStatus();
+}
+
+function checkDualEpoch() {
+  if (dualPhase !== 'running') return;
+  if (gsA.state === 'gameover' && !gsA.epochDone) {
+    gsA.epochDone = true; gsA.lastScore = gsA.score; gsA.lastFrames = gsA.frameCount;
+  }
+  if (gsB.state === 'gameover' && !gsB.epochDone) {
+    gsB.epochDone = true; gsB.lastScore = gsB.score; gsB.lastFrames = gsB.frameCount;
+  }
+  if (!gsA.epochDone || !gsB.epochDone) return;
+
+  dualEpochResults.push({
+    epoch:   dualEpochCurrent + 1,
+    scoreA:  gsA.lastScore, framesA: gsA.lastFrames,
+    scoreB:  gsB.lastScore, framesB: gsB.lastFrames,
+  });
+  renderDualChart();
+  dualEpochCurrent++;
+
+  if (dualEpochCurrent >= dualTotalEpochs) {
+    dualPhase = 'done';
+    updateDualStatus();
+  } else {
+    updateDualStatus();
+    setTimeout(() => {
+      if (dualPhase !== 'running') return;
+      initDualInstance(gsA, dualStratA);
+      initDualInstance(gsB, dualStratB);
+    }, 1200);
+  }
+}
+
+function updateDualUI() {
+  if (!gsA || !gsB) return;
+  document.getElementById('dcp-score-a').textContent =
+    `${AI_STRATEGIES[dualStratA].name}　分: ${gsA.score}　生命: ${'♥'.repeat(Math.max(0,gsA.lives))}`;
+  document.getElementById('dcp-score-b').textContent =
+    `${AI_STRATEGIES[dualStratB].name}　分: ${gsB.score}　生命: ${'♥'.repeat(Math.max(0,gsB.lives))}`;
+  const bodyA = document.getElementById('dcp-term-body-a');
+  bodyA.innerHTML = gsA.aiTermLog.slice(-60).map(e =>
+    `<div style="color:${e.color}">${e.text}</div>`).join('');
+  bodyA.scrollTop = bodyA.scrollHeight;
+  const bodyB = document.getElementById('dcp-term-body-b');
+  bodyB.innerHTML = gsB.aiTermLog.slice(-60).map(e =>
+    `<div style="color:${e.color}">${e.text}</div>`).join('');
+  bodyB.scrollTop = bodyB.scrollHeight;
+}
+
+function renderDualChart() {
+  const cc = document.getElementById('dcp-chart');
+  if (!cc) return;
+  const cx = cc.getContext('2d');
+  const CW = cc.width, CH = cc.height;
+  const pad = { t:24, r:20, b:32, l:48 };
+  cx.clearRect(0, 0, CW, CH);
+  const results = dualEpochResults;
+  if (results.length === 0) return;
+  const maxS = Math.max(...results.flatMap(r => [r.scoreA, r.scoreB]), 100);
+  const n = results.length;
+  const xStep = n > 1 ? (CW - pad.l - pad.r) / (n - 1) : 0;
+  const toX = i => pad.l + i * xStep;
+  const toY = s => CH - pad.b - (s / maxS) * (CH - pad.t - pad.b);
+
+  // Grid
+  cx.lineWidth = 1;
+  for (let g = 0; g <= 4; g++) {
+    const y = pad.t + g * (CH - pad.t - pad.b) / 4;
+    cx.strokeStyle = '#2a2a2a'; cx.beginPath(); cx.moveTo(pad.l, y); cx.lineTo(CW - pad.r, y); cx.stroke();
+    cx.fillStyle = '#555'; cx.font = '10px monospace'; cx.textAlign = 'right';
+    cx.fillText(Math.round(maxS * (1 - g/4)), pad.l - 4, y + 4);
+  }
+
+  // Lines
+  const drawLine = (key, color) => {
+    cx.strokeStyle = color; cx.lineWidth = 2; cx.shadowColor = color; cx.shadowBlur = 5;
+    cx.beginPath();
+    results.forEach((r, i) => { const x=toX(i), y=toY(r[key]); i===0?cx.moveTo(x,y):cx.lineTo(x,y); });
+    cx.stroke(); cx.shadowBlur = 0;
+    results.forEach((r, i) => {
+      cx.fillStyle = color; cx.beginPath();
+      cx.arc(toX(i), toY(r[key]), 3, 0, Math.PI*2); cx.fill();
+    });
+  };
+  drawLine('scoreA', '#0ff');
+  drawLine('scoreB', '#fa0');
+
+  // X labels
+  cx.fillStyle = '#555'; cx.font = '10px monospace'; cx.textAlign = 'center'; cx.shadowBlur = 0;
+  results.forEach((r, i) => {
+    if (n <= 15 || i % Math.max(1, Math.floor(n/10)) === 0)
+      cx.fillText(r.epoch, toX(i), CH - pad.b + 14);
+  });
+
+  // Legend
+  cx.fillStyle = '#0ff'; cx.fillRect(pad.l, 6, 14, 4);
+  cx.fillStyle = '#ccc'; cx.font = '11px monospace'; cx.textAlign = 'left';
+  cx.fillText(AI_STRATEGIES[dualStratA].name, pad.l + 18, 14);
+  cx.fillStyle = '#fa0'; cx.fillRect(pad.l + 110, 6, 14, 4);
+  cx.fillStyle = '#ccc'; cx.fillText(AI_STRATEGIES[dualStratB].name, pad.l + 128, 14);
+
+  // Stats
+  const avgA = Math.round(results.reduce((s,r)=>s+r.scoreA,0)/n);
+  const avgB = Math.round(results.reduce((s,r)=>s+r.scoreB,0)/n);
+  const best = avgA > avgB ? dualStratA : avgB > avgA ? dualStratB : null;
+  document.getElementById('dcp-stats').innerHTML =
+    `<span style="color:#0ff">${AI_STRATEGIES[dualStratA].name} 均分: ${avgA}</span>` +
+    `&nbsp;&nbsp;<span style="color:#fa0">${AI_STRATEGIES[dualStratB].name} 均分: ${avgB}</span>` +
+    (best ? `&nbsp;&nbsp;<span style="color:${best===dualStratA?'#0ff':'#fa0'};font-weight:bold;">` +
+      `▲ ${AI_STRATEGIES[best].name} 領先</span>` : `&nbsp;&nbsp;<span style="color:#888;">平手</span>`);
+}
+
+function updateDualStatus() {
+  const el = document.getElementById('dcp-status');
+  if (!el) return;
+  if (dualPhase === 'done') el.textContent = `✓ 完成（共 ${dualEpochCurrent} Epoch）`;
+  else if (dualPhase === 'running') el.textContent = `Epoch ${dualEpochCurrent + 1} / ${dualTotalEpochs}`;
+  else el.textContent = '';
+}
 
 // --- 初始化 ---
 function startGame(mode = 'player') {
@@ -1421,6 +1720,7 @@ function drawShuttle(x, y, blink) {
 
 // --- Benchmark ---
 function recordRun() {
+  if (dualMode) return;  // 雙模式由 checkDualEpoch 管理
   const entry = {
     run:      runHistory.length + 1,
     score,
@@ -1980,14 +2280,37 @@ function draw() {
 
 // --- 主迴圈 ---
 function loop() {
-  if (state === 'playing' || state === 'dead') update();
-  else if (state === 'start' || state === 'gameover' || state === 'menu' || state === 'ai_params' || state === 'game_settings') {
-    frameCount++;
-    stars.forEach(s => { s.y += s.speed; if (s.y > H) s.y = 0; });
-    particles = particles.filter(p => { p.x+=p.vx; p.y+=p.vy; p.vy+=0.1; p.life-=p.decay; return p.life>0; });
-    explosions = explosions.filter(e => { e.life-=e.decay; return e.life>0; });
+  if (dualMode && dualPhase !== 'idle' && gsA && gsB) {
+    // Instance A
+    if (gsA.state !== 'gameover') {
+      loadState(gsA); ctx = ctxA;
+      if (gsA.state === 'playing' || gsA.state === 'dead') update();
+      saveState(gsA);
+    }
+    // Instance B
+    if (gsB.state !== 'gameover') {
+      loadState(gsB); ctx = ctxB;
+      if (gsB.state === 'playing' || gsB.state === 'dead') update();
+      saveState(gsB);
+    }
+    checkDualEpoch();
+    // Draw A
+    loadState(gsA); ctx = ctxA; draw();
+    // Draw B
+    loadState(gsB); ctx = ctxB; draw();
+    // Restore original ctx and state
+    ctx = canvas.getContext('2d');
+    updateDualUI();
+  } else {
+    if (state === 'playing' || state === 'dead') update();
+    else if (state === 'start' || state === 'gameover' || state === 'menu' || state === 'ai_params' || state === 'game_settings') {
+      frameCount++;
+      stars.forEach(s => { s.y += s.speed; if (s.y > H) s.y = 0; });
+      particles = particles.filter(p => { p.x+=p.vx; p.y+=p.vy; p.vy+=0.1; p.life-=p.decay; return p.life>0; });
+      explosions = explosions.filter(e => { e.life-=e.decay; return e.life>0; });
+    }
+    draw();
   }
-  draw();
   requestAnimationFrame(loop);
 }
 
@@ -2194,6 +2517,10 @@ document.getElementById('btn-clear-storage').addEventListener('click', () => {
 });
 document.getElementById('btn-open-compare').addEventListener('click', () => {
   document.getElementById('compare-panel').style.display = 'block';
+});
+document.getElementById('btn-open-dual').addEventListener('click', () => {
+  dualMode = true;
+  document.getElementById('dual-compare-panel').style.display = 'flex';
 });
 document.getElementById('btn-il-close').addEventListener('click', () => {
   inputLogVisible = false;
