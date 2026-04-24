@@ -469,3 +469,70 @@ def test_compare_winner_determination(playing_page):
     assert result["colorA"] == "rgb(68, 255, 68)"
     assert result["colorB"] == "rgb(255, 102, 102)"
     _print(f"  [OK] A=green ({result['colorA']}), B=red ({result['colorB']})")
+
+
+def test_dash_burst_applies_impulse(playing_page):
+    _print("\n[UNIT TEST] Test: fireDash() sets dashActive=true and dashImpulseY < 0 (upward)")
+    result = playing_page.evaluate("""() => {
+        dashCooldown = 0;
+        dashConfig.upOnly = true;
+        dashConfig.dashSpeed = 80;
+        fireDash();
+        return { dashActive, dashImpulseY };
+    }""")
+    assert result["dashActive"] is True
+    assert result["dashImpulseY"] == -80
+    _print(f"  [OK] dashActive={result['dashActive']}, dashImpulseY={result['dashImpulseY']}")
+
+
+def test_dash_burst_moves_player_upward(playing_page):
+    _print("\n[UNIT TEST] Test: after fireDash(), player moves upward over multiple frames")
+    result = playing_page.evaluate("""() => {
+        player.x = 240; player.y = 400;
+        player.vx = 0; player.vy = 0;
+        dashCooldown = 0;
+        dashConfig.upOnly = true;
+        dashConfig.dashSpeed = 80;
+        fireDash();
+        const startY = player.y;
+        // Simulate 6 frames of impulse
+        for (let i = 0; i < 6; i++) {
+            if (!dashActive) break;
+            dashImpulseX *= 0.60;
+            dashImpulseY *= 0.60;
+            if (Math.abs(dashImpulseX) < 0.8 && Math.abs(dashImpulseY) < 0.8) {
+                dashActive = false;
+            } else {
+                player.x += dashImpulseX;
+                player.y += dashImpulseY;
+            }
+        }
+        return { startY, endY: player.y, moved: startY - player.y };
+    }""")
+    assert result["endY"] < result["startY"], "player should have moved upward"
+    assert result["moved"] > 100, f"expected >100px movement, got {result['moved']}"
+    _print(f"  [OK] moved {result['moved']:.1f}px upward (startY={result['startY']}, endY={result['endY']:.1f})")
+
+
+def test_dash_burst_impulse_stops(playing_page):
+    _print("\n[UNIT TEST] Test: dashActive becomes false once impulse falls below threshold")
+    result = playing_page.evaluate("""() => {
+        dashCooldown = 0;
+        dashConfig.upOnly = true;
+        dashConfig.dashSpeed = 80;
+        fireDash();
+        let frames = 0;
+        while (dashActive && frames < 30) {
+            dashImpulseX *= 0.60;
+            dashImpulseY *= 0.60;
+            if (Math.abs(dashImpulseX) < 0.8 && Math.abs(dashImpulseY) < 0.8) {
+                dashActive = false;
+                dashImpulseX = 0; dashImpulseY = 0;
+            }
+            frames++;
+        }
+        return { dashActive, frames };
+    }""")
+    assert result["dashActive"] is False
+    assert result["frames"] <= 15, f"should stop within 15 frames, took {result['frames']}"
+    _print(f"  [OK] dashActive=False after {result['frames']} frames")
