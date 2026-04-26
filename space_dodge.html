@@ -1219,10 +1219,10 @@ function startDualCompare() {
 
 function checkDualEpoch() {
   if (dualPhase !== 'running') return;
-  if (gsA.state === 'gameover' && !gsA.epochDone) {
+  if (!gsA.epochDone && (gsA.state === 'gameover' || gsA.lives <= 0)) {
     gsA.epochDone = true; gsA.lastScore = gsA.score; gsA.lastFrames = gsA.frameCount;
   }
-  if (gsB.state === 'gameover' && !gsB.epochDone) {
+  if (!gsB.epochDone && (gsB.state === 'gameover' || gsB.lives <= 0)) {
     gsB.epochDone = true; gsB.lastScore = gsB.score; gsB.lastFrames = gsB.frameCount;
   }
   if (!gsA.epochDone || !gsB.epochDone) return;
@@ -2282,13 +2282,13 @@ function draw() {
 function loop() {
   if (dualMode && dualPhase !== 'idle' && gsA && gsB) {
     // Instance A
-    if (gsA.state !== 'gameover') {
+    if (!gsA.epochDone) {
       loadState(gsA); ctx = ctxA;
       if (gsA.state === 'playing' || gsA.state === 'dead') update();
       saveState(gsA);
     }
     // Instance B
-    if (gsB.state !== 'gameover') {
+    if (!gsB.epochDone) {
       loadState(gsB); ctx = ctxB;
       if (gsB.state === 'playing' || gsB.state === 'dead') update();
       saveState(gsB);
