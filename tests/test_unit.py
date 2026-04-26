@@ -587,3 +587,25 @@ def test_dual_epoch_advances_when_both_done(playing_page):
     assert result["scoreA"] == 300
     assert result["scoreB"] == 400
     _print(f"  [OK] epoch recorded: scoreA={result['scoreA']}, scoreB={result['scoreB']}")
+
+
+def test_dual_epoch_advances_via_lives_zero(playing_page):
+    _print("\n[UNIT TEST] Test: both instances state='dead', lives=0 → checkDualEpoch records epoch (regression for v2.3.1 bugfix)")
+    result = playing_page.evaluate("""() => {
+        dualMode = true;
+        dualPhase = 'running';
+        dualEpochCurrent = 0;
+        dualTotalEpochs = 5;
+        dualEpochResults = [];
+        gsA = {}; initDualInstance(gsA, 'threat');
+        gsB = {}; initDualInstance(gsB, 'trajectory');
+        // Simulate lives reaching 0 (state stays 'dead' due to setTimeout in dual mode)
+        gsA.state = 'dead'; gsA.lives = 0; gsA.score = 150;
+        gsB.state = 'dead'; gsB.lives = 0; gsB.score = 200;
+        checkDualEpoch();
+        return { resultCount: dualEpochResults.length, scoreA: dualEpochResults[0]?.scoreA, scoreB: dualEpochResults[0]?.scoreB };
+    }""")
+    assert result["resultCount"] == 1
+    assert result["scoreA"] == 150
+    assert result["scoreB"] == 200
+    _print(f"  [OK] epoch recorded via lives=0: scoreA={result['scoreA']}, scoreB={result['scoreB']}")
