@@ -9,7 +9,7 @@
 
 為解決遊戲與 AI 演算法之間的「N × M 維度爆炸」與「空間不匹配」問題，本系統的底層設計深度參考了業界兩大標竿專案：
 
-*   **[openai/gym](https://github.com/openai/gym)**：借鑒其 `Env` 介面與 `Wrapper` 設計模式。我們將引入 **Adapter (轉接器)** 層，將遊戲的物理狀態標準化為 Agent 可讀的張量，並負責 Reward Shaping，實現遊戲邏輯與 AI 訓練的徹底解耦。
+*   **[Farama/Gymnasium]](https://github.com/Farama-Foundation/Gymnasium)**：借鑒其 `Env` 介面與 `Wrapper` 設計模式。我們將引入 **Adapter (轉接器)** 層，將遊戲的物理狀態標準化為 Agent 可讀的張量，並負責 Reward Shaping，實現遊戲邏輯與 AI 訓練的徹底解耦。
 *   **[wagenaartje/neataptic](https://github.com/wagenaartje/neataptic)**：借鑒其純 JS 神經網路黑箱化與演化邏輯。這確保了我們的 AI Agent 模組可以完全獨立於 Node.js 或瀏覽器前端運行，實現無縫的 Epoch 批次訓練。
 
 ### 2.1 四層解耦模組 (4-Module Architecture)
